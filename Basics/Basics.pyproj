@@ -22,6 +22,12 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="common\test.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="common\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="main.py" />
   </ItemGroup>
   <ItemGroup>
@@ -37,6 +43,9 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="requirements.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="common\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
