@@ -27,9 +27,10 @@ torch.manual_seed(args.seed)
 device = torch.device("cuda" if args.cuda else "cpu")
 
 kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+trainset = datasets.MNIST('./data', train=True, download=True,
+                   transform=transforms.ToTensor())
 train_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('./data', train=True, download=True,
-                   transform=transforms.ToTensor()),
+    trainset,
     batch_size=args.batch_size, shuffle=True, **kwargs)
 test_loader = torch.utils.data.DataLoader(
     datasets.MNIST('./data', train=False, transform=transforms.ToTensor()),
@@ -37,16 +38,42 @@ test_loader = torch.utils.data.DataLoader(
 
 
 class VAE(nn.Module):
-    def __init__(self):
+    def __init__(self, in_shape):
         super(VAE, self).__init__()
 
-        self.fc1 = nn.Linear(784, 400)
+        self.conv1 = nn.Conv2d(1, 16, 5)
+        self.pool1 = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(16, 32, 9)
+        self.pool2 = nn.MaxPool2d(2, 2)
+
+        self.height, self.width = self.calc_out_shape(in_shape[1],in_shape[2], self.conv1, self.pool1, self.conv2, self.pool2)
+
+        #self.fc1 = nn.Linear(784, 400)
+        self.fc1 = nn.Linear(32*self.width*self.height, 400)
         self.fc21 = nn.Linear(400, 20)
         self.fc22 = nn.Linear(400, 20)
         self.fc3 = nn.Linear(20, 400)
         self.fc4 = nn.Linear(400, 784)
 
+        self.activation = nn.ReLU()
+
+    def calc_out_shape(self, height, width, *fns):
+        ret_height = height
+        ret_width  = width
+        for fn in fns:
+            try:
+                ret_height = ((ret_height + 2*fn.padding[0] - fn.dilation[0]*(fn.kernel_size[0]-1) - 1) / fn.stride[0]) + 1
+                ret_width  = ((ret_width  + 2*fn.padding[1] - fn.dilation[1]*(fn.kernel_size[1]-1) - 1) / fn.stride[1]) + 1
+            except:
+                ret_height = ((ret_height + 2*fn.padding - fn.dilation*(fn.kernel_size-1) - 1) / fn.stride) + 1
+                ret_width  = ((ret_width  + 2*fn.padding - fn.dilation*(fn.kernel_size-1) - 1) / fn.stride) + 1
+
+        return int(ret_height), int(ret_width)
+
     def encode(self, x):
+        x = self.pool1(self.activation(self.conv1(x)))
+        x = self.pool2(self.activation(self.conv2(x)))
+        x = x.view(-1,32*self.height*self.width)
         h1 = F.relu(self.fc1(x))
         return self.fc21(h1), self.fc22(h1)
 
@@ -60,12 +87,12 @@ class VAE(nn.Module):
         return torch.sigmoid(self.fc4(h3))
 
     def forward(self, x):
-        mu, logvar = self.encode(x.view(-1, 784))
+        mu, logvar = self.encode(x)
         z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
 
 
-model = VAE().to(device)
+model = VAE(trainset.data.shape).to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
 
@@ -115,13 +142,13 @@ def test(epoch):
                 n = min(data.size(0), 8)
                 comparison = torch.cat([data[:n],
                                       recon_batch.view(args.batch_size, 1, 28, 28)[:n]])
-                #save_image(comparison.cpu(),
-                #         'results/reconstruction_' + str(epoch) + '.png', nrow=n)
+                save_image(comparison.cpu(),
+                         'results_conv/reconstruction_' + str(epoch) + '.png', nrow=n)
 
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
 
-from common import test
+#from common import test
 
 if __name__ == "__main__":
     #print(test.TEST())
@@ -131,5 +158,5 @@ if __name__ == "__main__":
         with torch.no_grad():
             sample = torch.randn(64, 20).to(device)
             sample = model.decode(sample).cpu()
-            #save_image(sample.view(64, 1, 28, 28),
-            #           'results/sample_' + str(epoch) + '.png')
+            save_image(sample.view(64, 1, 28, 28),
+                       'results_conv/sample_' + str(epoch) + '.png')
