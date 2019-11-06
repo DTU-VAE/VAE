@@ -6,54 +6,140 @@ from torch import nn, optim
 from torch.nn import functional as F
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
+from torch.utils.data.sampler import SubsetRandomSampler
+import numpy as np
+from functools import reduce
 
 
-parser = argparse.ArgumentParser(description='VAE MNIST Example')
-parser.add_argument('--batch-size', type=int, default=128, metavar='N',
-                    help='input batch size for training (default: 128)')
-parser.add_argument('--epochs', type=int, default=10, metavar='N',
-                    help='number of epochs to train (default: 10)')
-parser.add_argument('--no-cuda', action='store_true', default=False,
-                    help='enables CUDA training')
-parser.add_argument('--seed', type=int, default=1, metavar='S',
-                    help='random seed (default: 1)')
-parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-                    help='how many batches to wait before logging training status')
-args = parser.parse_args()
-args.cuda = not args.no_cuda and torch.cuda.is_available()
+#parser = argparse.ArgumentParser(description='VAE MNIST Example')
+#parser.add_argument('--batch-size', type=int, default=128, metavar='N',
+#                    help='input batch size for training (default: 128)')
+#parser.add_argument('--epochs', type=int, default=100, metavar='N',
+#                    help='number of epochs to train (default: 10)')
+#parser.add_argument('--no-cuda', action='store_true', default=False,
+#                    help='enables CUDA training')
+#parser.add_argument('--seed', type=int, default=1, metavar='S',
+#                    help='random seed (default: 1)')
+#parser.add_argument('--log-interval', type=int, default=10, metavar='N',
+#                    help='how many batches to wait before logging training status')
+#args = parser.parse_args()
 
-torch.manual_seed(args.seed)
+batch_size = 128
+epochs = 100
+seed = 1
+log_interval = 10
+cuda = torch.cuda.is_available()
 
-device = torch.device("cuda" if args.cuda else "cpu")
 
-kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+torch.manual_seed(seed)
+
+device = torch.device("cuda" if cuda else "cpu")
+
+kwargs = {'num_workers': 1, 'pin_memory': True} if cuda else {}
+
+transform = transforms.Compose(
+    [
+    #transforms.Grayscale(),
+    transforms.ToTensor(),
+    #transforms.Normalize((0.5, 0.5, 0.5),
+    #                     (0.5, 0.5, 0.5)),
+    ]
+)
+
+transform_train = transforms.Compose([
+    #transforms.RandomCrop(32, padding=4),
+    #transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    #transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+])
+
+# Normalize the test set same as training set without augmentation
+transform_test = transforms.Compose([
+    transforms.ToTensor(),
+    #transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+])
+
+dataset_train = datasets.CIFAR10('./data', train=True, download=True, transform=transform_train)
+dataset_test = datasets.CIFAR10('./data', train=False, transform=transform_test)
+
+classes = [1]
+def stratified_sampler(labels):
+    """Sampler that only picks datapoints corresponding to the specified classes"""
+    (indices,) = np.where(reduce(lambda x, y: x | y, [np.array(labels) == i for i in classes]))
+    indices = torch.from_numpy(indices)
+    return SubsetRandomSampler(indices)
 
 train_loader = torch.utils.data.DataLoader(
-    datasets.CIFAR10('./data', train=True, download=True, transform=transforms.ToTensor()),
-    batch_size=args.batch_size, shuffle=True, **kwargs)
+    dataset_train,
+    sampler=stratified_sampler(dataset_train.targets),
+    batch_size=batch_size,
+    #shuffle=True,
+    **kwargs)
 test_loader = torch.utils.data.DataLoader(
-    datasets.CIFAR10('./data', train=False, transform=transforms.ToTensor()),
-    batch_size=args.batch_size, shuffle=True, **kwargs)
+    dataset_test,
+    sampler=stratified_sampler(dataset_test.targets),
+    batch_size=batch_size,
+    #shuffle=True,
+    **kwargs)
 
 
 class VAE(nn.Module):
-    def __init__(self, in_shape):
+    def __init__(self, in_shape, embedding_size):
         super(VAE, self).__init__()
 
-        self.conv1 = nn.Conv2d(in_shape[3], 16, 5)
-        self.pool1 = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(16, 32, 9)
-        self.pool2 = nn.MaxPool2d(2, 2)
+        self.depth = in_shape[3]
+        #self.depth = 1
+        self.embedding_size = embedding_size
 
-        self.height, self.width = self.calc_out_shape(in_shape[1],in_shape[2], self.conv1, self.pool1, self.conv2, self.pool2)
+        self.conv1 = nn.Conv2d(self.depth, 32, 3, 1)
+        self.btnm1 = nn.BatchNorm2d(32)
 
-        self.fc1 = nn.Linear(32*self.width*self.height, 400)
-        self.fc21 = nn.Linear(400, 20)
-        self.fc22 = nn.Linear(400, 20)
-        self.fc3 = nn.Linear(20, 400)
-        self.fc4 = nn.Linear(400, in_shape[3]*in_shape[1]*in_shape[2])
+        self.conv2 = nn.Conv2d(32, 64, 3, 1)
+        self.pool2 = nn.MaxPool2d(2, 2, return_indices=True)
 
-        self.activation = nn.ReLU()
+        self.conv3 = nn.Conv2d(64, 128, 3, 1)
+        self.btnm3 = nn.BatchNorm2d(128)
+
+        self.conv4 = nn.Conv2d(128, 128, 3, 1)
+        self.pool4 = nn.MaxPool2d(2, 2, return_indices=True)
+        self.drop4 = nn.Dropout2d(0.05)
+
+        self.conv5 = nn.Conv2d(128, 256, 3, 1)
+        #self.btnm5 = nn.BatchNorm2d(256)
+
+        self.height, self.width = self.calc_out_shape(in_shape[1],in_shape[2], self.conv1, self.conv2, self.pool2, self.conv3, self.conv4, self.pool4, self.conv5)
+
+        self.fc1 = nn.Linear(256*self.width*self.height, 2000)
+        self.fc2 = nn.Linear(2000, 1500)
+        self.fc3 = nn.Linear(1500, 1000)
+        self.fc4 = nn.Linear(1000, 500)
+
+        self.fc51 = nn.Linear(500, self.embedding_size)
+        self.fc52 = nn.Linear(500, self.embedding_size)
+        
+        self.fc6 = nn.Linear(self.embedding_size, 500)
+        self.fc7 = nn.Linear(500, 1000)
+        self.fc8 = nn.Linear(1000, 1500)
+        self.fc9 = nn.Linear(1500, 2000)
+        self.fc10 = nn.Linear(2000, 256*self.width*self.height)
+
+        self.dconv1 = nn.ConvTranspose2d(256, 128, 3, 1)
+        
+        self.dpool2 = nn.MaxUnpool2d(2, 2)
+        self.dconv2 = nn.ConvTranspose2d(128, 128, 3, 1)
+        self.dbtnm2 = nn.BatchNorm2d(128)
+        
+        self.dconv3 = nn.ConvTranspose2d(128, 64, 3, 1)
+
+        self.dpool4 = nn.MaxUnpool2d(2, 2)
+        self.dconv4 = nn.ConvTranspose2d(64, 32, 3, 1)
+        self.dbtnm4 = nn.BatchNorm2d(32)
+        
+        self.dconv5 = nn.ConvTranspose2d(32, self.depth, 3, 1)
+
+        #self.fc7 = nn.Linear(500, self.depth*in_shape[1]*in_shape[2])
+
+        self.activation = nn.ELU()
 
     def calc_out_shape(self, height, width, *fns):
         ret_height = height
@@ -69,35 +155,68 @@ class VAE(nn.Module):
         return int(ret_height), int(ret_width)
 
     def encode(self, x):
-        x = self.pool1(self.activation(self.conv1(x)))
-        x = self.pool2(self.activation(self.conv2(x)))
-        x = x.view(-1,32*self.height*self.width)
-        h1 = F.relu(self.fc1(x))
-        return self.fc21(h1), self.fc22(h1)
+        x = self.activation(self.btnm1(self.conv1(x)))
+        x = self.activation(self.conv2(x))
+        self.size1 = x.size()
+        #print(self.size1)
+        x, self.ind1 = self.pool2(x)
+        x = self.activation(self.btnm3(self.conv3(x)))
+        x = self.activation(self.conv4(x))
+        self.size2 = x.size()
+        x, self.ind2 = self.pool4(x)
+        x = self.drop4(x)
+        x = self.activation(self.conv5(x))
+
+        x = x.view(-1,256*self.height*self.width)
+        
+        x = self.activation(self.fc1(x))
+        x = self.activation(self.fc2(x))
+        x = self.activation(self.fc3(x))
+        x = self.activation(self.fc4(x))
+        
+        return self.fc51(x), self.fc52(x)
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5*logvar)
         eps = torch.randn_like(std)
         return mu + eps*std
 
-    def decode(self, z):
-        h3 = F.relu(self.fc3(z))
-        return torch.sigmoid(self.fc4(h3))
+    def decode(self, z, gen = False):
+
+        z = self.activation(self.fc6(z))
+        z = self.activation(self.fc7(z))
+        z = self.activation(self.fc8(z))
+        z = self.activation(self.fc9(z))
+        z = self.activation(self.fc10(z))
+
+        z = z.view(-1, 256, self.width, self.height)
+
+        z = self.activation(self.dconv1(z))
+        z = self.dpool2(z, self.ind2, self.size2) if not gen else F.interpolate(z, scale_factor = 2)
+        z = self.activation(self.dbtnm2(self.dconv2(z)))
+        z = self.activation(self.dconv3(z))
+        z = self.dpool4(z, self.ind1, self.size1) if not gen else F.interpolate(z, scale_factor = 2)
+        z = self.activation(self.dbtnm4(self.dconv4(z)))
+        z = self.dconv5(z)
+
+        #return z
+        return torch.sigmoid(z)
 
     def forward(self, x):
         mu, logvar = self.encode(x)
         z = self.reparameterize(mu, logvar)
-        return self.decode(z), mu, logvar
+        out = self.decode(z)
+        return out, mu, logvar
 
-
-model = VAE(train_loader.dataset.data.shape).to(device)
+model = VAE(train_loader.dataset.data.shape, 20).to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
 
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, logvar):
     sh = train_loader.dataset.data.shape
-    BCE = F.binary_cross_entropy(recon_x, x.view(-1, sh[1]*sh[2]*sh[3]), reduction='sum')
+    #BCE = F.binary_cross_entropy(recon_x, x.view(-1, sh[1]*sh[2]*sh[3]), reduction='sum')
+    BCE = F.binary_cross_entropy(recon_x, x, reduction='sum')
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -119,7 +238,7 @@ def train(epoch):
         loss.backward()
         train_loss += loss.item()
         optimizer.step()
-        if batch_idx % args.log_interval == 0:
+        if batch_idx % log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader),
@@ -139,7 +258,8 @@ def test(epoch):
             if i == 0:
                 n = min(data.size(0), 8)
                 sh = train_loader.dataset.data.shape
-                comparison = torch.cat([data[:n], recon_batch.view(args.batch_size, sh[3], sh[1], sh[2])[:n]])
+                #comparison = torch.cat([data[:n], recon_batch.view(batch_size, sh[3], sh[1], sh[2])[:n]])
+                comparison = torch.cat([data[:n], recon_batch[:n]])
                 save_image(comparison.cpu(), 'results_conv_cifar/reconstruction_' + str(epoch) + '.png', nrow=n)
 
     test_loss /= len(test_loader.dataset)
@@ -147,11 +267,12 @@ def test(epoch):
 
 
 if __name__ == "__main__":
-    for epoch in range(1, args.epochs + 1):
+    for epoch in range(1, epochs + 1):
         train(epoch)
         test(epoch)
         with torch.no_grad():
-            sample = torch.randn(64, 20).to(device)
-            sample = model.decode(sample).cpu()
+            sample = torch.randn(128, 20).to(device)
+            sample = model.decode(sample, gen = True).cpu()
             sh = train_loader.dataset.data.shape
-            save_image(sample.view(64, sh[3], sh[1], sh[2]), 'results_conv_cifar/sample_' + str(epoch) + '.png')
+            #save_image(sample.view(64, sh[3], sh[1], sh[2]), 'results_conv_cifar/sample_' + str(epoch) + '.png')
+            save_image(sample, 'results_conv_cifar/sample_' + str(epoch) + '.png')
