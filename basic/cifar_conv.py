@@ -1,5 +1,3 @@
-from __future__ import print_function
-import argparse
 import torch
 import torch.utils.data
 from torch import nn, optim
@@ -10,41 +8,15 @@ from torch.utils.data.sampler import SubsetRandomSampler
 import numpy as np
 from functools import reduce
 
-
-#parser = argparse.ArgumentParser(description='VAE MNIST Example')
-#parser.add_argument('--batch-size', type=int, default=128, metavar='N',
-#                    help='input batch size for training (default: 128)')
-#parser.add_argument('--epochs', type=int, default=100, metavar='N',
-#                    help='number of epochs to train (default: 10)')
-#parser.add_argument('--no-cuda', action='store_true', default=False,
-#                    help='enables CUDA training')
-#parser.add_argument('--seed', type=int, default=1, metavar='S',
-#                    help='random seed (default: 1)')
-#parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-#                    help='how many batches to wait before logging training status')
-#args = parser.parse_args()
-
 batch_size = 128
 epochs = 100
 seed = 1
 log_interval = 10
 cuda = torch.cuda.is_available()
-
-
-torch.manual_seed(seed)
-
 device = torch.device("cuda" if cuda else "cpu")
-
 kwargs = {'num_workers': 1, 'pin_memory': True} if cuda else {}
 
-transform = transforms.Compose(
-    [
-    #transforms.Grayscale(),
-    transforms.ToTensor(),
-    #transforms.Normalize((0.5, 0.5, 0.5),
-    #                     (0.5, 0.5, 0.5)),
-    ]
-)
+torch.manual_seed(seed)
 
 transform_train = transforms.Compose([
     #transforms.RandomCrop(32, padding=4),
@@ -53,7 +25,6 @@ transform_train = transforms.Compose([
     #transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
 ])
 
-# Normalize the test set same as training set without augmentation
 transform_test = transforms.Compose([
     transforms.ToTensor(),
     #transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
@@ -88,60 +59,57 @@ class VAE(nn.Module):
         super(VAE, self).__init__()
 
         self.depth = in_shape[3]
-        #self.depth = 1
         self.embedding_size = embedding_size
 
+        # encode convolution layer
         self.conv1 = nn.Conv2d(self.depth, 32, 3, 1)
         self.btnm1 = nn.BatchNorm2d(32)
-
         self.conv2 = nn.Conv2d(32, 64, 3, 1)
-        self.pool2 = nn.MaxPool2d(2, 2, return_indices=True)
-
+        self.pool2 = nn.MaxPool2d(2, 2)
         self.conv3 = nn.Conv2d(64, 128, 3, 1)
         self.btnm3 = nn.BatchNorm2d(128)
-
         self.conv4 = nn.Conv2d(128, 128, 3, 1)
-        self.pool4 = nn.MaxPool2d(2, 2, return_indices=True)
+        self.pool4 = nn.MaxPool2d(2, 2)
         self.drop4 = nn.Dropout2d(0.05)
-
         self.conv5 = nn.Conv2d(128, 256, 3, 1)
-        #self.btnm5 = nn.BatchNorm2d(256)
-
+        
         self.height, self.width = self.calc_out_shape(in_shape[1],in_shape[2], self.conv1, self.conv2, self.pool2, self.conv3, self.conv4, self.pool4, self.conv5)
 
+        # encode linear
         self.fc1 = nn.Linear(256*self.width*self.height, 2000)
         self.fc2 = nn.Linear(2000, 1500)
         self.fc3 = nn.Linear(1500, 1000)
         self.fc4 = nn.Linear(1000, 500)
 
+        # laten space (mean, std)
         self.fc51 = nn.Linear(500, self.embedding_size)
         self.fc52 = nn.Linear(500, self.embedding_size)
         
+        # decode linear
         self.fc6 = nn.Linear(self.embedding_size, 500)
         self.fc7 = nn.Linear(500, 1000)
         self.fc8 = nn.Linear(1000, 1500)
         self.fc9 = nn.Linear(1500, 2000)
         self.fc10 = nn.Linear(2000, 256*self.width*self.height)
 
+        # deconde convolution layer
         self.dconv1 = nn.ConvTranspose2d(256, 128, 3, 1)
-        
-        self.dpool2 = nn.MaxUnpool2d(2, 2)
+        #self.dpool2 = nn.MaxUnpool2d(2, 2)
         self.dconv2 = nn.ConvTranspose2d(128, 128, 3, 1)
         self.dbtnm2 = nn.BatchNorm2d(128)
-        
         self.dconv3 = nn.ConvTranspose2d(128, 64, 3, 1)
-
-        self.dpool4 = nn.MaxUnpool2d(2, 2)
+        #self.dpool4 = nn.MaxUnpool2d(2, 2)
         self.dconv4 = nn.ConvTranspose2d(64, 32, 3, 1)
         self.dbtnm4 = nn.BatchNorm2d(32)
-        
         self.dconv5 = nn.ConvTranspose2d(32, self.depth, 3, 1)
 
-        #self.fc7 = nn.Linear(500, self.depth*in_shape[1]*in_shape[2])
-
+        # activation function used
         self.activation = nn.ELU()
 
     def calc_out_shape(self, height, width, *fns):
+        """
+            Returns the final width, height of the matrix after the convolution layer.
+        """
         ret_height = height
         ret_width  = width
         for fn in fns:
@@ -157,13 +125,10 @@ class VAE(nn.Module):
     def encode(self, x):
         x = self.activation(self.btnm1(self.conv1(x)))
         x = self.activation(self.conv2(x))
-        self.size1 = x.size()
-        #print(self.size1)
-        x, self.ind1 = self.pool2(x)
+        x = self.pool2(x)
         x = self.activation(self.btnm3(self.conv3(x)))
         x = self.activation(self.conv4(x))
-        self.size2 = x.size()
-        x, self.ind2 = self.pool4(x)
+        x = self.pool4(x)
         x = self.drop4(x)
         x = self.activation(self.conv5(x))
 
@@ -181,8 +146,7 @@ class VAE(nn.Module):
         eps = torch.randn_like(std)
         return mu + eps*std
 
-    def decode(self, z, gen = False):
-
+    def decode(self, z):
         z = self.activation(self.fc6(z))
         z = self.activation(self.fc7(z))
         z = self.activation(self.fc8(z))
@@ -192,10 +156,10 @@ class VAE(nn.Module):
         z = z.view(-1, 256, self.width, self.height)
 
         z = self.activation(self.dconv1(z))
-        z = self.dpool2(z, self.ind2, self.size2) if not gen else F.interpolate(z, scale_factor = 2)
+        z = F.interpolate(z, scale_factor = 2)
         z = self.activation(self.dbtnm2(self.dconv2(z)))
         z = self.activation(self.dconv3(z))
-        z = self.dpool4(z, self.ind1, self.size1) if not gen else F.interpolate(z, scale_factor = 2)
+        z = F.interpolate(z, scale_factor = 2)
         z = self.activation(self.dbtnm4(self.dconv4(z)))
         z = self.dconv5(z)
 
@@ -272,7 +236,7 @@ if __name__ == "__main__":
         test(epoch)
         with torch.no_grad():
             sample = torch.randn(128, 20).to(device)
-            sample = model.decode(sample, gen = True).cpu()
+            sample = model.decode(sample).cpu()
             sh = train_loader.dataset.data.shape
             #save_image(sample.view(64, sh[3], sh[1], sh[2]), 'results_conv_cifar/sample_' + str(epoch) + '.png')
             save_image(sample, 'results_conv_cifar/sample_' + str(epoch) + '.png')
