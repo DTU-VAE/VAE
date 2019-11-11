@@ -1,7 +1,6 @@
 from os import walk
 import numpy as np
 import pretty_midi
-import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import Dataset, DataLoader
 
@@ -64,8 +63,8 @@ class MIDIDataset(Dataset):
         sample = {'target' : target, 'past' : past.flatten()}
 
         return sample
-    
-allMIDI = MIDIDataset(r'C:\Users\Kronos\Downloads\maestro-v2.0.0-midi\maestro-v2.0.0')
+
+allMIDI = MIDIDataset(r'..\data')
 
 dataloader = DataLoader(allMIDI, batch_size=10, shuffle=True, num_workers=0)
 

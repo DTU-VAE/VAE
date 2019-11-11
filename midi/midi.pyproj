@@ -2,15 +2,14 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>f132e144-4669-4658-8691-aabef49d7013</ProjectGuid>
+    <ProjectGuid>11057c77-b7bb-4d7e-b800-68feeeaff88e</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>__init__.py</StartupFile>
-    <SearchPath>
-    </SearchPath>
+    <StartupFile>midi.py</StartupFile>
+    <SearchPath>..\..\VAE</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
-    <Name>vae</Name>
-    <RootNamespace>vae</RootNamespace>
+    <Name>midi</Name>
+    <RootNamespace>midi</RootNamespace>
     <InterpreterId>MSBuild|env|$(MSBuildProjectFullPath)</InterpreterId>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -22,11 +21,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="midi_dataloader.py" />
-    <Compile Include="vae.py" />
-    <Compile Include="__init__.py">
-      <SubType>Code</SubType>
-    </Compile>
+    <Compile Include="midi.py" />
   </ItemGroup>
   <ItemGroup>
     <Interpreter Include="env\">

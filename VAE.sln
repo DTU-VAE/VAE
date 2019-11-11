@@ -7,6 +7,8 @@ Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "vae", "vae\vae.pyproj", "{F
 EndProject
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "basic", "basic\basic.pyproj", "{66202900-5390-4B1B-8893-9594A6EA8D29}"
 EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "midi", "midi\midi.pyproj", "{11057C77-B7BB-4D7E-B800-68FEEEAFF88E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -17,6 +19,8 @@ Global
 		{F132E144-4669-4658-8691-AABEF49D7013}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{66202900-5390-4B1B-8893-9594A6EA8D29}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{66202900-5390-4B1B-8893-9594A6EA8D29}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{11057C77-B7BB-4D7E-B800-68FEEEAFF88E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{11057C77-B7BB-4D7E-B800-68FEEEAFF88E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
