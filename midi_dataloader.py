@@ -1,29 +1,43 @@
-from os import walk
+from os import walk, path
 import numpy as np
 import pretty_midi
-import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import Dataset, DataLoader
 
 class MIDIDataset(Dataset):
     def __init__(self, root_path, sequence_length=50):
+        self.sequence_length = sequence_length
+        
         self.midi_files = []
         for (dirpath, dirnames, filenames) in walk(root_path):
-            ff = [dirpath + "\\" + file for file in filenames if ".midi" in file]
+            ff = [dirpath + "/" + file for file in filenames if ".midi" in file]
             self.midi_files.extend(ff)
         
-        self.midi_end = 0
-        self.midi_dict = {} #end idx : file
-        self.ordered_keys = [] # for faster lookup
-        for file in self.midi_files:
+        counter = 1
+        limit = len(self.midi_files)
+
+        piano_midi = pretty_midi.PrettyMIDI(self.midi_files[0])
+        piano_roll = piano_midi.get_piano_roll().astype(np.int8)[21:107, :]
+
+        self.midi_end = piano_roll.shape[1]
+        self.midi_array = piano_roll
+        self.end_tokens = [self.midi_end]
+        for file in self.midi_files[1:]:
             piano_midi = pretty_midi.PrettyMIDI(file)
-            piano_roll = piano_midi.get_piano_roll()
-            start = self.midi_end
+            piano_roll = piano_midi.get_piano_roll().astype(np.int8)[21:107, :]
+
             self.midi_end += piano_roll.shape[1]
-            self.midi_dict[self.midi_end] = (start, file)
-            self.ordered_keys.append(self.midi_end)
+            self.end_tokens.append(self.midi_end)
+            self.midi_array = np.concatenate((self.midi_array, piano_roll), axis=1)
+            counter += 1
+            if counter % 10 == 0:
+                print("loading progress {:.2f}%" .format(counter / limit * 100))
+                break
         
-        self.sequence_length = sequence_length
+        print("Saving training set to binary")
+        np.save(root_path + "/training_data.npy", self.midi_array)
+        print("Array saved as" + root_path + "/training_data.npy")
+
 
     def __len__(self):
         return self.midi_end
@@ -32,45 +46,34 @@ class MIDIDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        # Get file
         start = 0
-        file = ""
-        for i, end_keys in enumerate(self.ordered_keys):
-            if idx > start and idx <= end_keys:
-                start, file = self.midi_dict[self.ordered_keys[i]]
+        for end_keys in self.end_tokens:
+            if idx > end_keys:
                 break
             start = end_keys + 1
         
-        piano_midi = pretty_midi.PrettyMIDI(file)
-        piano_roll = piano_midi.get_piano_roll()
-        piano_roll_by_time = piano_roll.reshape(-1, 128)
         relative_idx = idx - start
-        
-        target = piano_roll_by_time[relative_idx]
-        
+                
         # Add padding
-        if relative_idx <= self.sequence_length:
+        if relative_idx < self.sequence_length:
             if relative_idx == 0:
-                past = np.zeros((self.sequence_length, 128))
+                sequence = np.zeros((128, self.sequence_length))
             else:
-                padding_size = self.sequence_length - (relative_idx - 1)
-                padding = np.zeros((padding_size, 128))
-                past = piano_roll_by_time[0 : relative_idx - 1]
-                print(past)
-                past = np.concatenate(padding, past)
+                padding_size = self.sequence_length - relative_idx
+                padding = np.zeros((128, padding_size))
+                sequence = self.midi_array[start : start + relative_idx]
+                sequence = np.concatenate((padding, sequence), axis=1)
         else:
-            past = piano_roll_by_time[relative_idx - self.sequence_length - 1 : relative_idx - 1]
+            sequence = self.midi_array[:, start + relative_idx - self.sequence_length : start + relative_idx]
             
-        sample = {'target' : target, 'past' : past.flatten()}
-
-        return sample
+        return np.transpose(sequence)
     
-allMIDI = MIDIDataset(r'C:\Users\Kronos\Downloads\maestro-v2.0.0-midi\maestro-v2.0.0')
+allMIDI = MIDIDataset(path.expanduser('~/deep_learning/maestro-v2.0.0'))
 
-dataloader = DataLoader(allMIDI, batch_size=10, shuffle=True, num_workers=0)
+dataloader = DataLoader(allMIDI, batch_size=1, shuffle=True, num_workers=4)
 
 for i_batch, sample_batched in enumerate(dataloader):
-    print(i_batch, sample_batched['target'].size(), sample_batched['past'].size())
+    print(i_batch, sample_batched.size())
     
     if i_batch == 0:
         break
