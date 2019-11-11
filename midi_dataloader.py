@@ -33,20 +33,20 @@ class MIDIDataset(Dataset):
             idx = idx.tolist()
 
         # Get file
+        start = 0
+        file = ""
         for i, end_keys in enumerate(self.ordered_keys):
-            if idx == end_keys:
+            if idx > start and idx <= end_keys:
                 start, file = self.midi_dict[self.ordered_keys[i]]
                 break
-            elif idx > end_keys:
-                start, file = self.midi_dict[self.ordered_keys[i-1]]
-                break
+            start = end_keys + 1
         
         piano_midi = pretty_midi.PrettyMIDI(file)
         piano_roll = piano_midi.get_piano_roll()
         piano_roll_by_time = piano_roll.reshape(-1, 128)
         relative_idx = idx - start
         
-        target = piano_roll[relative_idx]
+        target = piano_roll_by_time[relative_idx]
         
         # Add padding
         if relative_idx <= self.sequence_length:
@@ -56,6 +56,7 @@ class MIDIDataset(Dataset):
                 padding_size = self.sequence_length - (relative_idx - 1)
                 padding = np.zeros((padding_size, 128))
                 past = piano_roll_by_time[0 : relative_idx - 1]
+                print(past)
                 past = np.concatenate(padding, past)
         else:
             past = piano_roll_by_time[relative_idx - self.sequence_length - 1 : relative_idx - 1]
@@ -66,7 +67,7 @@ class MIDIDataset(Dataset):
     
 allMIDI = MIDIDataset(r'C:\Users\Kronos\Downloads\maestro-v2.0.0-midi\maestro-v2.0.0')
 
-dataloader = DataLoader(allMIDI, batch_size=1, shuffle=True, num_workers=0)
+dataloader = DataLoader(allMIDI, batch_size=10, shuffle=True, num_workers=0)
 
 for i_batch, sample_batched in enumerate(dataloader):
     print(i_batch, sample_batched['target'].size(), sample_batched['past'].size())
