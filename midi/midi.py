@@ -14,12 +14,13 @@ chunk_size = 10
 
 
 class MIDI(nn.Module):
-    def __init__(self, input_size, hidden_size, embedding_size):
+    def __init__(self, input_size, hidden_size, embedding_size, last_cell_only = False):
         super(MIDI, self).__init__()
 
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.embedding_size = embedding_size
+        self.last_cell_only = last_cell_only
 
         # encode rnn
         self.rnn1 = nn.LSTM(self.input_size,self.hidden_size,num_layers=1,batch_first=True,dropout=0,bidirectional=False)
@@ -44,7 +45,16 @@ class MIDI(nn.Module):
     def encode(self, x):
         x, (h, c) = self.rnn1(x)
 
-        x = x.reshape(-1, self.hidden_size)
+        # `x` has shape (batch, sequence, hidden_size)
+        # the LSTM implement sequence many cells, so `x` contains the output (hidden state) of each cell
+        # if we only need the last cells output we could do
+        # x = x[:, -1, :]
+
+        if self.last_cell_only:
+            raise NotImplementedError('Need to implement the case where only the last cell\'s output is used.')
+            #x = x[:,-1,:].view(-1, self.hidden_size)
+        else:
+            x = x.contiguous().view(-1, self.hidden_size)
 
         x = self.activation(self.fc1(x))
         
@@ -76,7 +86,7 @@ model = MIDI(128,300,20).to(device)
 
 input = torch.randn(batch_size, chunk_size, 128)
 ret = model.forward(input)
-print('l')
+print(ret[0].shape)
 
 #optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
