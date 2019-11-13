@@ -23,6 +23,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="midi_dataloader.py" />
+    <Compile Include="midi_utils.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="vae.py" />
     <Compile Include="__init__.py">
       <SubType>Code</SubType>

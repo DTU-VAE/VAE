@@ -51,6 +51,7 @@ class MIDI(nn.Module):
         # x = x[:, -1, :]
 
         if self.last_cell_only:
+            # UNDONE: implement many-to-one case
             raise NotImplementedError('Need to implement the case where only the last cell\'s output is used.')
             #x = x[:,-1,:].view(-1, self.hidden_size)
         else:

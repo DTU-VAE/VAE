@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>11057c77-b7bb-4d7e-b800-68feeeaff88e</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>midi.py</StartupFile>
+    <StartupFile>midi_example.py</StartupFile>
     <SearchPath>..\..\VAE</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -22,6 +22,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="midi.py" />
+    <Compile Include="midi_example.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Interpreter Include="env\">
