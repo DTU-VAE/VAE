@@ -18,7 +18,7 @@ class MIDIDataset(Dataset):
 
 		# Load pickle if exists and return
 		if add_limit_tokens:
-			pickled_file = root_path + "/year_" + year + ".pkl"
+			pickled_file = root_path + "/year_" + year + "_89.pkl"
 		else:
 			pickled_file = root_path + "/year_" + year + "_88.pkl"
 		if Path(pickled_file).is_file():
