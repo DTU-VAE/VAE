@@ -9,6 +9,10 @@ from torch.utils.data import Dataset, DataLoader
 root_path = path.expanduser(r'C:\Users\Kronos\Downloads\maestro-v2.0.0-midi')
 
 
+## TODO
+# Remove modifiers
+# Filter given signature
+
 class MIDIDataset(Dataset):
 	def __init__(self, root_path, sequence_length=50, fs=16, year=-1, add_limit_tokens=True, binarize=False):
 		year = str(year) if not isinstance(year, str) else year
@@ -47,7 +51,7 @@ class MIDIDataset(Dataset):
 		self.midi_data = []
 		for idx, file in enumerate(self.midi_files):
 			piano_midi = pretty_midi.PrettyMIDI(file)
-			piano_roll = piano_midi.get_piano_roll(fs=fs).astype(np.uint8)[21:109, :]
+			piano_roll = piano_midi.get_piano_roll(fs=fs)[21:109, :]
 			if self.add_limit_tokens:
 				limit_array = np.zeros((1, piano_roll.shape[1]))
 				limit_array[0] = 1
@@ -94,7 +98,7 @@ class MIDIDataset(Dataset):
 		# Binarize if set
 		if self.binarize:
 			sequence = np.clip(sequence, 0, 1)
-			sequence = sequence.astype(np.bool) # test if this is a valid tensor type
+			#sequence = sequence.astype(np.bool) # test if this is a valid tensor type, + tradeoff between memory and cpu time
 
 		return np.transpose(sequence)
 	
@@ -106,5 +110,5 @@ dataloader = DataLoader(allMIDI, batch_size=10, shuffle=True, num_workers=0)
 for i_batch, sample_batched in enumerate(dataloader):
 	print(i_batch, sample_batched.shape)
 	
-	if i_batch == 5:
+	if i_batch == 50000:
 		break
