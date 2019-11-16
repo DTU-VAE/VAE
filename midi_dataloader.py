@@ -54,8 +54,8 @@ class MIDIDataset(Dataset):
 			piano_roll = piano_midi.get_piano_roll(fs=fs)[21:109, :]
 			if self.add_limit_tokens:
 				limit_array = np.zeros((1, piano_roll.shape[1]))
-				limit_array[0] = 1
-				limit_array[-1] = 1
+				limit_array[:,0] = 1
+				limit_array[:,-1] = 1
 				piano_roll = np.vstack((piano_roll, limit_array))
 
 			self.midi_data.append(piano_roll)
@@ -92,13 +92,9 @@ class MIDIDataset(Dataset):
 		# Get sequence
 		sequence = self.midi_data[list_idx][:, relative_idx - (self.sequence_length - 1) : relative_idx + 1]
 
-		# Reduce memory footprint
-		sequence = sequence.astype(np.uint8)
-
 		# Binarize if set
 		if self.binarize:
 			sequence = np.clip(sequence, 0, 1)
-			#sequence = sequence.astype(np.bool) # test if this is a valid tensor type, + tradeoff between memory and cpu time
 
 		return np.transpose(sequence)
 	
