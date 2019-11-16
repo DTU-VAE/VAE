@@ -36,6 +36,7 @@ def piano_roll_to_pretty_midi(piano_roll, fs=100, program=0, offset=21):
     if notes == 128:
         offset = 0
     piano_roll = np.pad(piano_roll, [(offset, 128-offset-notes), (1, 1)], 'constant')
+    notes, frames = piano_roll.shape
 
     # use changes in velocities to find note on / note off events
     velocity_changes = np.nonzero(np.diff(piano_roll).T)

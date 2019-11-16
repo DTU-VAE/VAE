@@ -33,7 +33,7 @@ midi_from_proll.write(f'{midi}_processed.midi')
 
 
 
-
+"""
 # Create a PrettyMIDI object
 cello_c_chord = pretty_midi.PrettyMIDI()
 # Create an Instrument instance for a cello instrument
@@ -60,3 +60,4 @@ for note_name in ['A5', 'C5', 'E5']:
 cello_c_chord.instruments.append(cello)
 # Write out the MIDI data
 cello_c_chord.write('cello-C-chord.midi')
+"""
