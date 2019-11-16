@@ -6,7 +6,10 @@ import pretty_midi
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-root_path = path.expanduser(r'C:\Users\Kronos\Downloads\maestro-v2.0.0-midi')
+if os.name == 'nt':
+	root_path = r'C:\Users\Kronos\Downloads\maestro-v2.0.0-midi'
+else:
+	root_path = path.expanduser('~/deep_learning/maestro-v2.0.0-midi')
 
 
 ## TODO
@@ -37,8 +40,11 @@ class MIDIDataset(Dataset):
 
 		# Create dataset
 		self.midi_files = []
-		for (dirpath, dirnames, filenames) in walk(root_path):
-			ff = [dirpath + "/" + file for file in filenames if ".midi" in file]
+		for (dirpath, dirnames, filenames) in walk(root_path):	
+			if os.name == 'nt':
+				ff = [dirpath + "\\" + file for file in filenames if ".midi" in file]
+			else:
+				ff = [dirpath + "/" + file for file in filenames if ".midi" in file]
 			if year == -1 or year in dirpath:
 				self.midi_files.extend(ff)
 
