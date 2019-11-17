@@ -103,9 +103,7 @@ if __name__ == '__main__':
     #root_path = path.expanduser(r'..\data')
     root_path = '..\data'
     allMIDI = MIDIDataset(root_path, fs=16, year=2004, add_limit_tokens=True, binarize=False, save_pickle=False)
-    dataloader = DataLoader(allMIDI, batch_size=10, shuffle=True, num_workers=0)
+    dataloader = DataLoader(allMIDI, batch_size=10, shuffle=True, num_workers=0, drop_last=True)
     
     for i_batch, sample_batched in enumerate(dataloader):
         print(i_batch, sample_batched.shape)
-        if i_batch == 50000:
-            break
