@@ -7,10 +7,14 @@ import pretty_midi
 import torch
 from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
 
+print(os.path.expanduser("~"))
+    
 if os.name == 'nt':
     root_path = r'C:\Users\Kronos\Downloads\maestro-v2.0.0-midi'
-else:
+elif os.path.expanduser("~") == "/home/updown":
     root_path = path.expanduser('~/deep_learning/maestro-v2.0.0')
+else:
+    root_path = "/"
 
 
 ## TODO
