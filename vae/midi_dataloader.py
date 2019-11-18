@@ -1,28 +1,17 @@
 from os import walk, path
-import os
 from pathlib import Path
 import numpy as np
 import pickle
 import pretty_midi
 import torch
-from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
-
-print(os.path.expanduser("~"))
-    
-if os.name == 'nt':
-    root_path = r'C:\Users\Kronos\Downloads\maestro-v2.0.0-midi'
-elif os.path.expanduser("~") == "/home/updown":
-    root_path = path.expanduser('~/deep_learning/maestro-v2.0.0')
-else:
-    root_path = "/"
-
+from torch.utils.data import Dataset, DataLoader
 
 ## TODO
 # Remove modifiers
 # Filter given signature
 
 class MIDIDataset(Dataset):
-    def __init__(self, root_path, sequence_length=50, fs=16, year=-1, add_limit_tokens=True, binarize=False, save_pickle=True):
+    def __init__(self, root_path, sequence_length=50, fs=16, year=-1, add_limit_tokens=True, binarize=False, save_pickle=False):
         year = str(year) if not isinstance(year, str) else year
         self.sequence_length = sequence_length
         self.add_limit_tokens = add_limit_tokens
@@ -31,26 +20,23 @@ class MIDIDataset(Dataset):
 
         # Load pickle if exists and return
         if add_limit_tokens:
-            pickled_file = root_path + "/year_" + year + "_89.pkl"
+            pickled_file = root_path + "/pickle/year_" + year + "_89.pkl"
         else:
-            pickled_file = root_path + "/year_" + year + "_88.pkl"
+            pickled_file = root_path + "/pickle/year_" + year + "_88.pkl"
         if Path(pickled_file).is_file():
             with open(pickled_file, 'rb') as f:
                 pickle_content = pickle.load(f)
                 self.midi_data = pickle_content[0]
                 self.dataset_length = pickle_content[1]
                 self.end_tokens = pickle_content[2]
-                print("Loaded pickled dataset. Size = {}, Path: {}/training_data_year_{}.npy" .format(self.dataset_length, root_path, year))
+                print("Loaded pickled dataset. Size = {}, Path: {}" .format(self.dataset_length, pickled_file))
 
             return
 
         # Create dataset
         self.midi_files = []
-        for (dirpath, dirnames, filenames) in walk(root_path):  
-            if os.name == 'nt':
-                ff = [dirpath + "\\" + file for file in filenames if ".midi" in file]
-            else:
-                ff = [dirpath + "/" + file for file in filenames if ".midi" in file]
+        for (dirpath, dirnames, filenames) in walk(root_path):
+            ff = [dirpath + "/" + file for file in filenames if ".midi" in file]
             if year == -1 or year in dirpath:
                 self.midi_files.extend(ff)
 
@@ -104,6 +90,7 @@ class MIDIDataset(Dataset):
                 
         # Get sequence
         sequence = self.midi_data[list_idx][:, relative_idx - (self.sequence_length - 1) : relative_idx + 1]
+        sequence = sequence.astype(np.float32)
 
         # Binarize if set
         if self.binarize:
@@ -112,45 +99,11 @@ class MIDIDataset(Dataset):
         return np.transpose(sequence)
     
 
-
-allMIDI = MIDIDataset(root_path, fs=16, year=2004, add_limit_tokens=True, binarize=False)
-
-# Split dataset
-batch_size = 10
-validation_split = .2
-shuffle_dataset = True
-
-# Creating data indices for training and validation splits:
-dataset_size = len(allMIDI)
-indices = list(range(dataset_size))
-split = int(np.floor(validation_split * dataset_size))
-if shuffle_dataset :
-    np.random.shuffle(indices)
-train_indices, val_indices = indices[split:], indices[:split]
-
-# Creating PT data samplers and loaders:
-train_sampler = SubsetRandomSampler(train_indices)
-valid_sampler = SubsetRandomSampler(val_indices)
-
-train_loader = torch.utils.data.DataLoader(allMIDI, batch_size=batch_size, sampler=train_sampler, drop_last=True, num_workers=0)
-validation_loader = torch.utils.data.DataLoader(allMIDI, batch_size=batch_size, sampler=valid_sampler, drop_last=True, num_workers=0)
-
-dataloader_all = DataLoader(allMIDI, batch_size=10, shuffle=True, num_workers=0, drop_last=True)
-
-for i_batch, sample_batched in enumerate(dataloader_all):
-    print(i_batch, sample_batched.shape)
+if __name__ == '__main__':
+    #root_path = path.expanduser(r'..\data')
+    root_path = '..\data'
+    allMIDI = MIDIDataset(root_path, fs=16, year=2004, add_limit_tokens=True, binarize=False, save_pickle=False)
+    dataloader = DataLoader(allMIDI, batch_size=10, shuffle=True, num_workers=0, drop_last=True)
     
-    if i_batch == 50:
-        break
-
-for i_batch, sample_batched in enumerate(train_loader):
-    print(i_batch, sample_batched.shape)
-    
-    if i_batch == 50:
-        break
-
-for i_batch, sample_batched in enumerate(validation_loader):
-    print(i_batch, sample_batched.shape)
-    
-    if i_batch == 50:
-        break
+    for i_batch, sample_batched in enumerate(dataloader):
+        print(i_batch, sample_batched.shape)
