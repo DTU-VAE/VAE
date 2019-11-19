@@ -3,6 +3,7 @@ import torch
 from torch import nn, optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
+from pathlib import Path
 import numpy as np
 import pretty_midi
 import vae
@@ -17,14 +18,19 @@ parser.add_argument('--sequence-length', type=int, default=50, metavar='N',
                     help='sequence length of input data to LSTM (default: 50)')
 parser.add_argument('--colab', action='store_true', default=False,
                     help='indicates whether script is running on Google Colab')
-#parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-#                    help='how many batches to wait before logging training status')
+parser.add_argument('--log-interval', type=int, default=1000, metavar='N',
+                    help='how many batches to wait before logging training status')
+parser.add_argument('--bootstrap', type=str, default='',
+                    help='specifies the path to the model.tar to load the model from')
 args = parser.parse_args()
 
 
 cuda = torch.cuda.is_available()
 device = torch.device("cuda" if cuda else "cpu")
 #kwargs = {'num_workers': 1, 'pin_memory': True} if cuda else {}
+
+if not Path(args.bootstrap).is_file():
+    args.bootstrap = ''
 
 if args.colab:
     midi_dataset = vae.midi_dataloader.MIDIDataset('data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=False)
@@ -154,13 +160,24 @@ def train(epoch):
         loss.backward()
         train_loss += loss.item()
         optimizer.step()
-        if batch_idx % 1000 == 0:
+        if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(train_loader),
+                epoch, batch_idx * len(data), args.batch_size*len(train_loader),
                 100. * batch_idx / len(train_loader),
                 loss.item() / len(data)))
 
     print('====> Epoch: {} Average loss: {:.4f}'.format(epoch, train_loss / len(train_loader)))
+
+    if args.colab:
+        save_path = f'model_states/model_epoch_{epoch}.tar'
+    else:
+        save_path = f'../model_states/model_epoch_{epoch}.tar'
+    torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': train_loss
+            }, save_path)
 
 
 def test(epoch):
@@ -185,7 +202,18 @@ def test(epoch):
 
 
 if __name__ == "__main__":
-    for epoch in range(1, args.epochs + 1):
+    c_epoch = 0
+
+    # load the model parameters from the saved file (.tar extension)
+    if args.bootstrap:
+        checkpoint = torch.load(args.bootstrap)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        c_epoch = checkpoint['epoch']
+        loss = checkpoint['loss']
+        print('Bootstrapping model from {}\Continuing training from epoch: {}\n'.format(args.bootstrap, c_epoch+1))
+
+    for epoch in range(c_epoch+1, (c_epoch + args.epochs + 1)):
         train(epoch)
         test(epoch)
         with torch.no_grad():
