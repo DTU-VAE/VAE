@@ -211,7 +211,7 @@ if __name__ == "__main__":
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         c_epoch = checkpoint['epoch']
         loss = checkpoint['loss']
-        print('Bootstrapping model from {}\Continuing training from epoch: {}\n'.format(args.bootstrap, c_epoch+1))
+        print('Bootstrapping model from {}\nContinuing training from epoch: {}\n'.format(args.bootstrap, c_epoch+1))
 
     for epoch in range(c_epoch+1, (c_epoch + args.epochs + 1)):
         train(epoch)
