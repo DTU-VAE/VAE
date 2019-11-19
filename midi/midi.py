@@ -31,7 +31,10 @@ if args.colab:
 else:
     midi_dataset = vae.midi_dataloader.MIDIDataset('../data', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=True)
 
-dataloader = DataLoader(midi_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
+train_sampler, test_sampler, validation_sampler = vae.midi_dataloader.split_dataset(midi_dataset, test_split=0.15, validation_split=0.15)
+train_loader      = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=train_sampler,      drop_last=True)
+test_loader       = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=test_sampler,       drop_last=True)
+validation_loader = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=validation_sampler, drop_last=True)
 
 
 class MIDI(nn.Module):
@@ -143,7 +146,7 @@ def loss_function(recon_x, x, mu, logvar):
 def train(epoch):
     model.train()
     train_loss = 0
-    for batch_idx, data in enumerate(dataloader):
+    for batch_idx, data in enumerate(train_loader):
         data = data.to(device)
         optimizer.zero_grad()
         recon_batch, mu, logvar = model(data)
@@ -153,11 +156,12 @@ def train(epoch):
         optimizer.step()
         if batch_idx % 1000 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(dataloader.dataset),
-                100. * batch_idx / len(dataloader),
+                epoch, batch_idx * len(data), len(train_loader),
+                100. * batch_idx / len(train_loader),
                 loss.item() / len(data)))
+            break
 
-    print('====> Epoch: {} Average loss: {:.4f}'.format(epoch, train_loss / len(dataloader.dataset)))
+    print('====> Epoch: {} Average loss: {:.4f}'.format(epoch, train_loss / len(train_loader)))
 
 
 def test(epoch):

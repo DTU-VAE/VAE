@@ -4,14 +4,14 @@ import numpy as np
 import pickle
 import pretty_midi
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
 
 ## TODO
 # Remove modifiers
 # Filter given signature
 
 class MIDIDataset(Dataset):
-    def __init__(self, root_path, sequence_length=50, fs=16, year=-1, add_limit_tokens=True, binarize=False, save_pickle=False):
+    def __init__(self, root_path, sequence_length=50, fs=16, year=-1, add_limit_tokens=True, binarize=True, save_pickle=False):
         year = str(year) if not isinstance(year, str) else year
         self.sequence_length = sequence_length
         self.add_limit_tokens = add_limit_tokens
@@ -99,56 +99,59 @@ class MIDIDataset(Dataset):
         return np.transpose(sequence)
     
 
+def split_dataset(dataset, test_split=0.15, validation_split=0.15, shuffle=True):
+
+    # Creating data indices for training and validation splits
+    dataset_size = len(dataset)
+    indices = list(range(dataset_size))
+    test_split = int(np.floor(test_split * dataset_size))
+    validation_split = int(np.floor(validation_split * dataset_size))
+    if shuffle:
+        np.random.shuffle(indices)
+    train_indices, test_indices, validation_indices = indices[(validation_split+test_split):], indices[validation_split:(validation_split+test_split)], indices[:validation_split]
+
+    # Creating PT data samplers and loaders:	
+    train_sampler      = SubsetRandomSampler(train_indices)
+    test_sampler       = SubsetRandomSampler(test_indices)
+    validation_sampler = SubsetRandomSampler(validation_indices)
+
+    return train_sampler, test_sampler, validation_sampler
+
+
 if __name__ == '__main__':
-    #root_path = path.expanduser(r'..\data')
     root_path = '..\data'
-    allMIDI = MIDIDataset(root_path, fs=16, year=2004, add_limit_tokens=True, binarize=False, save_pickle=False)
-    dataloader = DataLoader(allMIDI, batch_size=10, shuffle=True, num_workers=0, drop_last=True)
-    
-    for i_batch, sample_batched in enumerate(dataloader):
-        print(i_batch, sample_batched.shape)
+    allMIDI = MIDIDataset(root_path, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=False)
 
+    batch_size = 10
+    train_sampler, test_sampler, validation_sampler = split_dataset(allMIDI)
 
+    train_loader = DataLoader(allMIDI, batch_size=batch_size, sampler=train_sampler, drop_last=True, num_workers=0)
+    test_loader = DataLoader(allMIDI, batch_size=batch_size, sampler=test_sampler, drop_last=True, num_workers=0)
+    validation_loader = DataLoader(allMIDI, batch_size=batch_size, sampler=validation_sampler, drop_last=True, num_workers=0)
+    dataloader_all = DataLoader(allMIDI, batch_size=batch_size, shuffle=True, num_workers=0, drop_last=True)
 
-#allMIDI = MIDIDataset(root_path, fs=16, year=2004, add_limit_tokens=True, binarize=False)
+    print('Dataset size: {}'.format(len(dataloader_all)))
+    print('Train size: {}'.format(len(train_loader)))
+    print('Test size: {}'.format(len(test_loader)))
+    print('Validation size: {}'.format(len(validation_loader)))
+    print('\n------------------------------------------\nShape examples\n')
 
-## Split dataset
-#batch_size = 10
-#validation_split = .2	
-#shuffle_dataset = True	
+    for i_batch, sample_batched in enumerate(dataloader_all):
+        print('all',i_batch, sample_batched.shape)
+        if i_batch == 2:
+            break
 
-## Creating data indices for training and validation splits:	
-#dataset_size = len(allMIDI)	
-#indices = list(range(dataset_size))	
-#split = int(np.floor(validation_split * dataset_size))	
-#if shuffle_dataset :	
-#    np.random.shuffle(indices)	
-#train_indices, val_indices = indices[split:], indices[:split]	
+    for i_batch, sample_batched in enumerate(train_loader):
+        print('train',i_batch, sample_batched.shape)
+        if i_batch == 2:
+            break
 
-## Creating PT data samplers and loaders:	
-#train_sampler = SubsetRandomSampler(train_indices)	
-#valid_sampler = SubsetRandomSampler(val_indices)	
+    for i_batch, sample_batched in enumerate(test_loader):
+        print('test',i_batch, sample_batched.shape)
+        if i_batch == 2:
+            break
 
-#train_loader = torch.utils.data.DataLoader(allMIDI, batch_size=batch_size, sampler=train_sampler, drop_last=True, num_workers=0)	
-#validation_loader = torch.utils.data.DataLoader(allMIDI, batch_size=batch_size, sampler=valid_sampler, drop_last=True, num_workers=0)	
-
-#dataloader_all = DataLoader(allMIDI, batch_size=10, shuffle=True, num_workers=0, drop_last=True)	
-
-#for i_batch, sample_batched in enumerate(dataloader_all):	
-#    print(i_batch, sample_batched.shape)	
-
-#    if i_batch == 50:	
-#        break	
-
-#for i_batch, sample_batched in enumerate(train_loader):	
-#    print(i_batch, sample_batched.shape)	
-
-#    if i_batch == 50:	
-#        break	
-
-#for i_batch, sample_batched in enumerate(validation_loader):	
-#    print(i_batch, sample_batched.shape)	
-
-
-#    if i_batch == 50:	   
-#        break
+    for i_batch, sample_batched in enumerate(validation_loader):
+        print('valid',i_batch, sample_batched.shape)
+        if i_batch == 2:
+            break
