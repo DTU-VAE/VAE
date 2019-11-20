@@ -46,6 +46,7 @@ def train(epoch):
 
     print('====> Epoch: {} Average train loss: {:.4f}'.format(epoch, train_loss / len(train_loader)))
 
+    #TODO: Decide what to save
     save_path = f'../model_states/model_epoch_{epoch}.tar'
     torch.save({
             'epoch': epoch,
@@ -53,7 +54,7 @@ def train(epoch):
             'optimizer_state_dict': optimizer.state_dict(),
             'loss': train_loss
             }, save_path)
-    #TODO: Decide what to save
+    print('Saved model at {}'.format(save_path))
 
 
 def validate(epoch):
