@@ -15,8 +15,8 @@ parser.add_argument('--batch-size', type=int, default=10, metavar='N',
                     help='input batch size for training (default: 10)')
 parser.add_argument('--sequence-length', type=int, default=50, metavar='N',
                     help='sequence length of input data to LSTM (default: 50)')
-parser.add_argument('--colab', action='store_true', default=False,
-                    help='indicates whether script is running on Google Colab')
+#parser.add_argument('--colab', action='store_true', default=False,
+#                    help='indicates whether script is running on Google Colab')
 parser.add_argument('--log-interval', type=int, default=1000, metavar='N',
                     help='how many batches to wait before logging training status (default: 1000)')
 parser.add_argument('--bootstrap', type=str, default='', metavar='S',
@@ -24,36 +24,6 @@ parser.add_argument('--bootstrap', type=str, default='', metavar='S',
 parser.add_argument('--generative', action='store_true', default=False,
                     help='indicates whether the model is trained or only used for generation (default: False)')
 args = parser.parse_args()
-
-
-cuda = torch.cuda.is_available()
-device = torch.device("cuda" if cuda else "cpu")
-#kwargs = {'num_workers': 1, 'pin_memory': True} if cuda else {}
-model = vae.vae.MIDI(88,300,64,args.sequence_length).to(device)
-optimizer = optim.Adam(model.parameters(), lr=1e-3)
-
-if not Path(args.bootstrap).is_file() and args.bootstrap:
-    print('Could not locate {} so ignoring bootstrapping..'.format(args.bootstrap))
-    if args.generative:
-        print('Since the required model could not be loaded, the generation is aborted.')
-        exit()
-    answer = input('Should I start training a new network? (y/n)')
-    if answer == 'n':
-        exit()
-    args.bootstrap = ''
-
-if args.colab:
-    midi_dataset = vae.midi_dataloader.MIDIDataset('../data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=True)
-else:
-    midi_dataset = vae.midi_dataloader.MIDIDataset('../data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=True)
-
-train_sampler, test_sampler, validation_sampler = vae.midi_dataloader.split_dataset(midi_dataset, test_split=0.15, validation_split=0.15)
-train_loader      = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=train_sampler,      drop_last=True)
-test_loader       = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=test_sampler,       drop_last=True)
-validation_loader = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=validation_sampler, drop_last=True)
-
-
-loss_function = vae.vae.bce_kld_loss
 
 
 def train(epoch):
@@ -140,14 +110,27 @@ def sample(name, cycle):
 
 
 if __name__ == "__main__":
-    c_epoch = 0
+    # check if bootstrapping is possible
+    if not Path(args.bootstrap).is_file() and args.bootstrap:
+        print('Could not locate {} so ignoring bootstrapping..'.format(args.bootstrap))
+        if args.generative:
+            print('Since the required model could not be loaded, the generation is aborted.')
+            exit()
+        answer = input('Start training a new network? (y/n)')
+        if answer == 'n':
+            exit()
+        args.bootstrap = ''
 
-    # load the model parameters from the saved file (.tar extension)
+    # create model, optimizer, and loss function on specific device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #kwargs = {'num_workers': 1, 'pin_memory': True} if cuda else {}
+    model = vae.vae.MIDI(88,300,64,args.sequence_length).to(device)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    loss_function = vae.vae.bce_kld_loss
+
+    # load the model parameters from the saved file if given (.tar extension)
+    c_epoch = 0
     if args.bootstrap:
-        #if torch.cuda.is_available():
-        #    map_location=lambda storage, loc: storage.cuda()
-        #else:
-        #    map_location='cpu'
         checkpoint = torch.load(args.bootstrap, map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -157,13 +140,22 @@ if __name__ == "__main__":
         if not args.generative:
             print('Continuing training from epoch: {}\n'.format(c_epoch+1))
 
-    # training and saving one sample after each epochs
+    # if we want to train
     if not args.generative:
+        # create dataset and loaders
+        midi_dataset = vae.midi_dataloader.MIDIDataset('../data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=True)
+        train_sampler, test_sampler, validation_sampler = vae.midi_dataloader.split_dataset(midi_dataset, test_split=0.15, validation_split=0.15)
+        train_loader      = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=train_sampler,      drop_last=True)
+        test_loader       = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=test_sampler,       drop_last=True)
+        validation_loader = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=validation_sampler, drop_last=True)
+
+        # start training and save a sample after each epoch
         for epoch in range(c_epoch+1, (c_epoch + args.epochs + 1)):
             train(epoch)
             validate(epoch)
             sample(name=epoch, cycle=4)
         test((c_epoch + args.epochs))
+    # otherwise simply generate a sample from the loaded model
     else:
         print('Generating sample from model')
         sample(name='without_training', cycle=4)

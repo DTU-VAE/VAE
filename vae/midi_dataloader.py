@@ -1,4 +1,4 @@
-from os import walk, path
+from os import walk, path, makedirs
 from pathlib import Path
 import numpy as np
 import pickle
@@ -42,6 +42,7 @@ class MIDIDataset(Dataset):
         self.dataset_length = 0
         self.end_tokens = []
         self.midi_data = []
+        print('Start loading dataset..')
         # tqdm() only perform pretty loading print, does not interact with the data in any other way
         for idx, file in enumerate(tqdm(self.midi_files)):
             piano_midi = pretty_midi.PrettyMIDI(file)
@@ -60,6 +61,8 @@ class MIDIDataset(Dataset):
 
         # Pickle dataset
         if self.save_pickle:
+            if not path.exists(root_path + "/pickle"):
+                makedirs(root_path + "/pickle")
             with open(pickled_file, 'wb') as f:
                 pickle.dump((self.midi_data, self.dataset_length, self.end_tokens), f)
                 print('Saved dataset into pickle file at {}'.format(pickled_file))
