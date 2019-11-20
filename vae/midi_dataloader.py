@@ -61,9 +61,10 @@ class MIDIDataset(Dataset):
 
             self.dataset_length += piano_roll.shape[1] - (self.sequence_length - 1) # Remove uncomplete sequences from choices
             self.end_tokens.append(self.dataset_length-1)
-            sys.stdout.write("Progress" + "\r%d%%" % (counter / self.file_count * 100))
+            sys.stdout.write("\r%d%%" % (counter / self.file_count * 100 + 1))
             sys.stdout.flush()
-        print("\n")
+            counter+=1
+        print("\nData is loaded!")
 
         # Pickle dataset
         if self.save_pickle:
