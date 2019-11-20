@@ -82,20 +82,34 @@ def test(epoch):
     print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, test_loss / len(test_loader)))
 
 
+def generate(model, x0, z0, beat_length=16): #TODO: check sample generation. This is the loop which feeds back always the z and the previous result of the network by using 1 more cell per round. (BERCI)
+    zx = torch.cat([x0, z0], 2) # creating the initial zx from the x0 start vector and z
+    for n in range(beat_length-1):
+        output = model.decode(zx)
+        z  = torch.cat([z0 for _ in range(n+2)], 1) # merging the original z with itself, it needs to have the same sequence size as the next x input
+        x  = torch.cat([x0, output], 1) 
+        zx = torch.cat([x, z], 2) # merging the z-s with the inputs (x0 + the last output)
+    return x
+
+
 def sample(name, cycle):
+    model.eval()
     with torch.no_grad():
+        samples = []
+        
         # initialize the first z latent variable and the very first note (x0) which starts the melody 
         sample_z = torch.randn(1, 1, model.embedding_size).to(device)
-        sample_x = torch.zeros(1, 1, model.input_size).to(device)
-        all_samples = model.generate(sample_x, sample_z).cpu()
-        sample_z = torch.randn(1, 1, model.embedding_size).to(device)
-        sample_x = all_samples[:, -1, :].view(1, 1, -1)
-        # after the first 'beat' we create the rest (cycle-1) of them
-        for i in range(cycle-1):
-            sample = model.generate(sample_x, sample_z).cpu()
-            all_samples = torch.cat([all_samples, sample], 1)
-            sample_z = torch.randn(1, 1, model.embedding_size).to(device)
-            sample_x = sample[:, -1, :].view(1, 1, -1)
+        sample_x = torch.zeros(1, 1, model.input_size).to(device) #TODO: check if this is good or not
+
+        # generate `cycle` many beats
+        for i in range(cycle):
+            sample = generate(model, sample_x, sample_z)
+            samples.append(sample.cpu())
+            sample_z = torch.randn(1, 1, model.embedding_size).to(device) # sample new z
+            sample_x = sample[:, -1, :].view(1, 1, -1) # continue next beat from last sound of previous beat
+        
+        # generate piano roll from beats    
+        all_samples = torch.cat(samples, 1)
         all_samples = all_samples * 100
         all_samples = all_samples.view(88, -1) #TODO: use contiguous()? or reshape? BERCI: I think we don't need any of them
 
