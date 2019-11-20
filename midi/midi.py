@@ -19,7 +19,7 @@ parser.add_argument('--colab', action='store_true', default=False,
                     help='indicates whether script is running on Google Colab')
 parser.add_argument('--log-interval', type=int, default=1000, metavar='N',
                     help='how many batches to wait before logging training status (default: 1000)')
-parser.add_argument('--bootstrap', type=str, default='',
+parser.add_argument('--bootstrap', type=str, default='', metavar='S',
                     help='specifies the path to the model.tar to load the model from')
 parser.add_argument('--generative', action='store_true', default=False,
                     help='indicates whether the model is trained or only used for generation (default: False)')
