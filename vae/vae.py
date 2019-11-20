@@ -65,31 +65,26 @@ class MIDI(nn.Module):
         #z = z.view(batch_size, sequence_length, self.hidden_size)
 
         x, (h, c) = self.drnn1(zx)
-        x = torch.sigmoid(x)
-        #x = torch.bernoulli(x) #TODO: I think we need to convert all the outputs to 0 and 1 and compare them after the bernoulli conversion with the target (BERCI) !!! if this is added back check if at other places it needs to be removed!
-        return x
+
+        return torch.sigmoid(x)
 
     def forward(self, x):
         mu, logvar = self.encode(x[:, 1:, :])
         z = self.reparameterize(mu, logvar)
         z = z.view(10,1,64) # add a third dimension (middle) to be able to concatenate with x
         z = torch.cat([z for _ in range(self.sequence_length-1)], 1)
-        zx = torch.cat((x[:, :-1, :],z), 2)
+        zx = torch.cat((x[:, :-1, :], z), 2)
         out = self.decode(zx)
         return out, mu, logvar
 
 
 # Reconstruction + KL divergence losses summed over all elements and batch
 def bce_kld_loss(recon_x, x, mu, logvar):
-    #TODO: Decide which loss function to use
-
-    #BCE = F.cross_entropy(recon_x, x, reduction='sum')
-    #BCE = F.mse_loss(recon_x, x, reduction='sum')
-    #BCE2 = F.mse_loss(recon_x, x, reduction='mean')
-    #BCE = F.ctc_loss(F.log_softmax(recon_x), x.int(), recon_x.shape, x.shape, reduction='sum')
-
-    #TODO: should I call torch.bernoulli() on the sigmoid recon_x? maybe nn.Bernoulli() sample with the actual input to get probabilities?
-    BCE = F.binary_cross_entropy(recon_x, x[:, 1:, :], reduction='sum')
-    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    BCE = F.binary_cross_entropy(recon_x, x[:, 1:, :], reduction='none')
+    BCE = torch.sum(BCE, (1,2)) # sum over 2nd and 3rd dimensions (keeping it separate for each batch)
+    BCE = torch.mean(BCE) # average over batch losses
+    #BCE = F.binary_cross_entropy(recon_x, x[:, 1:, :], reduction='sum') # taken out in favour of above
+    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), 1) # sum over 2nd dimension
+    KLD = torch.mean(KLD) # average over batch losses
 
     return BCE + KLD

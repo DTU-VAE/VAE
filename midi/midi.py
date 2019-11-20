@@ -76,6 +76,7 @@ def test(epoch):
         recon_batch, mu, logvar = model(data)
         loss = loss_function(recon_batch, data, mu, logvar)
         test_loss += loss.item()
+        #TODO: implement reconstruction sampling and saving
 
     print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, test_loss / len(test_loader)))
 
@@ -85,7 +86,8 @@ def generate_beat(model, x0, z0, beat_length=16): #TODO: check sample generation
     for n in range(beat_length-1):
         output = model.decode(zx)
         z  = torch.cat([z0 for _ in range(n+2)], 1) # merging the original z with itself, it needs to have the same sequence size as the next x input
-        x  = torch.cat([x0, output], 1) 
+        x  = torch.cat([x0, output], 1)
+        #x  = torch.bernoulli(x) #TODO: check if this is needed
         zx = torch.cat([x, z], 2) # merging the z-s with the inputs (x0 + the last output)
     return x
 
@@ -108,9 +110,9 @@ def sample(name, cycle):
         
         # generate piano roll from beats    
         all_samples = torch.cat(samples, 1)
-        all_samples = torch.bernoulli(all_samples) #TODO: this needs to be removed if model already returns bernoulli()
+        all_samples = torch.bernoulli(all_samples) #TODO: this needs to be removed if samples are already binary
         all_samples = all_samples * 100
-        all_samples = all_samples.view(88, -1) #TODO: use contiguous()? or reshape? BERCI: I think we don't need any of them
+        all_samples = all_samples.view(88, -1)
 
         # convert piano roll to midi
         program = pretty_midi.instrument_name_to_program('Acoustic Grand Piano')
