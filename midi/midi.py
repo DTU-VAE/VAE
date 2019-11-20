@@ -44,9 +44,6 @@ train_loader      = DataLoader(midi_dataset, batch_size=args.batch_size, sampler
 test_loader       = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=test_sampler,       drop_last=True)
 validation_loader = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=validation_sampler, drop_last=True)
 
-model = vae.vae.MIDI(88,300,64,args.sequence_length)
-optimizer = optim.Adam(model.parameters(), lr=1e-3)
-
 
 loss_function = vae.vae.bce_kld_loss
 
@@ -142,6 +139,7 @@ def sample(name, cycle):
 
 if __name__ == "__main__":
     c_epoch = 0
+    model = vae.vae.MIDI(88,300,64,args.sequence_length)
 
     # load the model parameters from the saved file (.tar extension)
     if args.bootstrap:
@@ -159,6 +157,7 @@ if __name__ == "__main__":
             print('Continuing training from epoch: {}\n'.format(c_epoch+1))
 
     model.to(device)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
     # training and saving one sample after each epochs
     if not args.generative:
