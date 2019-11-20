@@ -14,13 +14,15 @@ parser.add_argument('--epochs', type=int, default=1, metavar='N',
 parser.add_argument('--batch-size', type=int, default=10, metavar='N',
                     help='input batch size for training (default: 10)')
 parser.add_argument('--sequence-length', type=int, default=50, metavar='N',
-                    help='sequence length of input data to LSTM (default: 50)')
+                    help='sequence length of input data to LSTM (default: 16)')
 parser.add_argument('--colab', action='store_true', default=False,
                     help='indicates whether script is running on Google Colab')
 parser.add_argument('--log-interval', type=int, default=1000, metavar='N',
                     help='how many batches to wait before logging training status')
-parser.add_argument('--bootstrap', type=str, default='',
+parser.add_argument('--bootstrap', type=str, default='../model_states/model_epoch_2.tar',
                     help='specifies the path to the model.tar to load the model from')
+parser.add_argument('--training', type=bool, default=False,
+                    help='indicates whether the script will train the or just sample from a loaded model')
 args = parser.parse_args()
 
 
@@ -81,25 +83,29 @@ def train(epoch):
     #TODO: Decide what to save
 
 
-def test(epoch):
-    model.eval()
-    #TODO: Implement test function
+def sample(name, cycle):
+    print("Preparing sample...")
+    with torch.no_grad():
+        # initialize the first z latent variable and the very first note (x0) which starts the melody 
+        sample_z = torch.randn(1, 1, model.embedding_size).to(device)
+        sample_x = torch.zeros(1, 1, model.input_size).to(device)
+        all_samples = model.generate(sample_x, sample_z).cpu()
+        sample_z = torch.randn(1, 1, model.embedding_size).to(device)
+        sample_x = all_samples[:, -1, :].view(1, 1, -1)
+        # after the first 'beat' we create the rest (cycle-1) of them
+        for i in range(cycle-1):
+            sample = model.generate(sample_x, sample_z).cpu()
+            all_samples = torch.cat([all_samples, sample], 1)
+            sample_z = torch.randn(1, 1, model.embedding_size).to(device)
+            sample_x = sample[:, -1, :].view(1, 1, -1)
+        all_samples = all_samples * 100
+        all_samples = all_samples.view(88, -1) #TODO: use contiguous()? or reshape? BERCI: I think we don't need any of them
 
-#    test_loss = 0
-#    with torch.no_grad():
-#        for i, (data, _) in enumerate(test_loader):
-#            data = data.to(device)
-#            recon_batch, mu, logvar = model(data)
-#            test_loss += loss_function(recon_batch, data, mu, logvar).item()
-#            if i == 0:
-#                n = min(data.size(0), 8)
-#                sh = train_loader.dataset.data.shape
-#                #comparison = torch.cat([data[:n], recon_batch.view(batch_size, sh[3], sh[1], sh[2])[:n]])
-#                comparison = torch.cat([data[:n], recon_batch[:n]])
-#                save_image(comparison.cpu(), 'results_conv_cifar/reconstruction_' + str(epoch) + '.png', nrow=n)
-
-#    test_loss /= len(test_loader.dataset)
-#    print('====> Test set loss: {:.4f}'.format(test_loss))
+        # convert piano roll to midi
+        program = pretty_midi.instrument_name_to_program('Acoustic Grand Piano')
+        midi_from_proll = vae.midi_utils.piano_roll_to_pretty_midi(all_samples, fs = 4, program = program) # reduced frequency to be able to hear the generated 'music'
+        midi_from_proll.write(f'../sample_{name}.midi')
+        print("Success, sample_" + name + ".midi is saved in the VAE folder!")
 
 
 if __name__ == "__main__":
@@ -107,27 +113,23 @@ if __name__ == "__main__":
 
     # load the model parameters from the saved file (.tar extension)
     if args.bootstrap:
-        checkpoint = torch.load(args.bootstrap)
+        if torch.cuda.is_available():
+            map_location=lambda storage, loc: storage.cuda()
+        else:
+            map_location='cpu'
+        checkpoint = torch.load(args.bootstrap, map_location=map_location)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         c_epoch = checkpoint['epoch']
         loss = checkpoint['loss']
-        print('Bootstrapping model from {}\nContinuing training from epoch: {}\n'.format(args.bootstrap, c_epoch+1))
+        if args.training:
+            print('Bootstrapping model from {}\nContinuing training from epoch: {}\n'.format(args.bootstrap, c_epoch+1))
 
-    for epoch in range(c_epoch+1, (c_epoch + args.epochs + 1)):
-        train(epoch)
-        test(epoch)
-        with torch.no_grad():
-            sample_z = torch.randn(1, 1, model.embedding_size)
-            sample_x = torch.zeros(1, 1, model.input_size) #TODO: check if this is good or not
-            sample   = torch.cat([sample_x, sample_z], 2).to(device)
-
-            sample = model.decode(sample).cpu()
-            sample = torch.bernoulli(torch.sigmoid(sample)) #TODO: do I call torch.bernoulli() on this sample?
-            sample = sample * 100
-            sample = sample.contiguous().view(88,-1) #TODO: use contiguous()? or reshape?
-
-            # convert piano roll to midi
-            program = pretty_midi.instrument_name_to_program('Acoustic Grand Piano')
-            midi_from_proll = vae.midi_utils.piano_roll_to_pretty_midi(sample, fs = 16, program = program)
-            midi_from_proll.write(f'sample_{epoch}.midi')
+    # training and saving one sample after each epochs
+    if args.training:
+        for epoch in range(c_epoch+1, (c_epoch + args.epochs + 1)):
+            train(epoch)
+            sample(name=epoch, cycle=4)
+    else:
+        print("Sampling from loaded model: " + args.bootstrap)
+        sample(name='without_training', cycle=4)

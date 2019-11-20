@@ -64,14 +64,18 @@ class MIDI(nn.Module):
 
         #z = z.view(batch_size, sequence_length, self.hidden_size)
 
-        if self.training:
-            x, (h, c) = self.drnn1(zx)
-        else:
-            #TODO: implement sample generation
-
-            # ONLY TEMPORARLY HERE
-            x, (h, c) = self.drnn1(zx)
-
+        x, (h, c) = self.drnn1(zx)
+        x = torch.bernoulli(torch.sigmoid(x)) #TODO I think we need to convert all the outputs to 0 and 1 and compare them after the bernoulli conversion with the target (BERCI) 
+        return x
+        
+    def generate(self, x0, z0): #TODO: check sample generation. This is the loop which feeds back always the z and the previous result of the network by using 1 more cell per round. (BERCI)
+        zx = torch.cat([x0, z0], 2) # creating the initial zx from the x0 start vector and z
+        for n in range(self.sequence_length):
+            x, (h, c) = self.drnn1(zx) # running xz through the decoding model, x returns always with the same number of elements as the input was but shifted by 1
+            output = torch.bernoulli(torch.sigmoid(x)) # normalizing between -1 and 1, then binarizing
+            z = torch.cat([z0 for _ in range(n+2)], 1) # merging the original z with itself, it needs to have the same sequence size as the next x input
+            x = torch.cat([x0, output], 1) 
+            zx = torch.cat([x, z], 2) # merging the z-s with the inputs (x0 + the last output)
         return x
 
     def forward(self, x):
