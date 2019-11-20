@@ -42,7 +42,6 @@ def train(epoch):
                 epoch, batch_idx * len(data), args.batch_size*len(train_loader),
                 100. * batch_idx / len(train_loader),
                 loss.item() / len(data)))
-            break
 
     print('====> Epoch: {} Average train loss: {:.4f}'.format(epoch, train_loss / len(train_loader)))
 
@@ -64,7 +63,6 @@ def validate(epoch):
         recon_batch, mu, logvar = model(data)
         loss = loss_function(recon_batch, data, mu, logvar)
         valid_loss += loss.item()
-        break
     
     print('====> Epoch: {} Average validation loss: {:.4f}'.format(epoch, valid_loss / len(validation_loader)))
 
@@ -77,12 +75,11 @@ def test(epoch):
         recon_batch, mu, logvar = model(data)
         loss = loss_function(recon_batch, data, mu, logvar)
         test_loss += loss.item()
-        break
 
     print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, test_loss / len(test_loader)))
 
 
-def generate(model, x0, z0, beat_length=16): #TODO: check sample generation. This is the loop which feeds back always the z and the previous result of the network by using 1 more cell per round. (BERCI)
+def generate_beat(model, x0, z0, beat_length=16): #TODO: check sample generation. This is the loop which feeds back always the z and the previous result of the network by using 1 more cell per round. (BERCI)
     zx = torch.cat([x0, z0], 2) # creating the initial zx from the x0 start vector and z
     for n in range(beat_length-1):
         output = model.decode(zx)
@@ -103,19 +100,20 @@ def sample(name, cycle):
 
         # generate `cycle` many beats
         for i in range(cycle):
-            sample = generate(model, sample_x, sample_z)
+            sample = generate_beat(model, sample_x, sample_z)
             samples.append(sample.cpu())
             sample_z = torch.randn(1, 1, model.embedding_size).to(device) # sample new z
             sample_x = sample[:, -1, :].view(1, 1, -1) # continue next beat from last sound of previous beat
         
         # generate piano roll from beats    
         all_samples = torch.cat(samples, 1)
+        all_samples = torch.bernoulli(all_samples) #TODO: this needs to be removed if model already returns bernoulli()
         all_samples = all_samples * 100
         all_samples = all_samples.view(88, -1) #TODO: use contiguous()? or reshape? BERCI: I think we don't need any of them
 
         # convert piano roll to midi
         program = pretty_midi.instrument_name_to_program('Acoustic Grand Piano')
-        midi_from_proll = vae.midi_utils.piano_roll_to_pretty_midi(all_samples, fs = 4, program = program) #TEST: reduced frequency to be able to hear the generated 'music'
+        midi_from_proll = vae.midi_utils.piano_roll_to_pretty_midi(all_samples, fs = 16, program = program) #TEST: reduced frequency to be able to hear the generated 'music'
 
         # save midi to specified location
         save_path = f'../results/sample/sample_epoch_{name}.midi'

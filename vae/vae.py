@@ -65,7 +65,8 @@ class MIDI(nn.Module):
         #z = z.view(batch_size, sequence_length, self.hidden_size)
 
         x, (h, c) = self.drnn1(zx)
-        x = torch.bernoulli(torch.sigmoid(x)) #TODO I think we need to convert all the outputs to 0 and 1 and compare them after the bernoulli conversion with the target (BERCI) 
+        x = torch.sigmoid(x)
+        #x = torch.bernoulli(x) #TODO: I think we need to convert all the outputs to 0 and 1 and compare them after the bernoulli conversion with the target (BERCI) !!! if this is added back check if at other places it needs to be removed!
         return x
 
     def forward(self, x):
@@ -81,20 +82,14 @@ class MIDI(nn.Module):
 # Reconstruction + KL divergence losses summed over all elements and batch
 def bce_kld_loss(recon_x, x, mu, logvar):
     #TODO: Decide which loss function to use
-    #TODO: BCE reduction mean/sum?
 
     #BCE = F.cross_entropy(recon_x, x, reduction='sum')
     #BCE = F.mse_loss(recon_x, x, reduction='sum')
     #BCE2 = F.mse_loss(recon_x, x, reduction='mean')
     #BCE = F.ctc_loss(F.log_softmax(recon_x), x.int(), recon_x.shape, x.shape, reduction='sum')
 
-    # using mean of both BCE and KLD
-    #BCE = F.binary_cross_entropy(torch.sigmoid(recon_x), x[:, 1:, :], reduction='sum')
-    #BCE /= args.batch_size
-    #TODO: should I call torch.bernoulli() on the sigmoid recon_x?
-    BCE = F.binary_cross_entropy(torch.sigmoid(recon_x), x[:, 1:, :], reduction='mean')
+    #TODO: should I call torch.bernoulli() on the sigmoid recon_x? maybe nn.Bernoulli() sample with the actual input to get probabilities?
+    BCE = F.binary_cross_entropy(recon_x, x[:, 1:, :], reduction='sum')
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    #TODO: check if KLD needs to be normalised or not
-    #KLD /= args.batch_size
 
     return BCE + KLD
