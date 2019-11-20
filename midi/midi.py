@@ -76,10 +76,7 @@ def train(epoch):
 
     print('====> Epoch: {} Average train loss: {:.4f}'.format(epoch, train_loss / len(train_loader)))
 
-    if args.colab:
-        save_path = f'../model_states/model_epoch_{epoch}.tar'
-    else:
-        save_path = f'../model_states/model_epoch_{epoch}.tar'
+    save_path = f'../model_states/model_epoch_{epoch}.tar'
     torch.save({
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
@@ -137,10 +134,7 @@ def sample(name, cycle):
         midi_from_proll = vae.midi_utils.piano_roll_to_pretty_midi(all_samples, fs = 4, program = program) #TEST: reduced frequency to be able to hear the generated 'music'
 
         # save midi to specified location
-        if args.colab:
-            save_path = f'../results/sample/sample_epoch_{name}.midi'
-        else:
-            save_path = f'../results/sample/sample_epoch_{name}.midi'
+        save_path = f'../results/sample/sample_epoch_{name}.midi'
         midi_from_proll.write(save_path)
         print('Saved midi sample at {}'.format(save_path))
 
