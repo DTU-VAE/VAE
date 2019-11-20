@@ -62,6 +62,7 @@ class MIDIDataset(Dataset):
         if self.save_pickle:
             with open(pickled_file, 'wb') as f:
                 pickle.dump((self.midi_data, self.dataset_length, self.end_tokens), f)
+                print('Saved dataset into pickle file at {}'.format(pickled_file))
 
 
     def __len__(self):
@@ -127,8 +128,8 @@ def split_dataset(dataset, test_split=0.15, validation_split=0.15, shuffle=True)
 
 
 if __name__ == '__main__':
-    root_path = '..\data'
-    allMIDI = MIDIDataset(root_path, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=False)
+    root_path = '../data/maestro-v2.0.0'
+    allMIDI = MIDIDataset(root_path, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=True)
 
     batch_size = 10
     train_sampler, test_sampler, validation_sampler = split_dataset(allMIDI)
