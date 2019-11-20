@@ -29,13 +29,21 @@ args = parser.parse_args()
 cuda = torch.cuda.is_available()
 device = torch.device("cuda" if cuda else "cpu")
 #kwargs = {'num_workers': 1, 'pin_memory': True} if cuda else {}
+model = vae.vae.MIDI(88,300,64,args.sequence_length).to(device)
+optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
 if not Path(args.bootstrap).is_file() and args.bootstrap:
     print('Could not locate {} so ignoring bootstrapping..'.format(args.bootstrap))
+    if args.generative:
+        print('Since the required model could not be loaded, the generation is aborted.')
+        exit()
+    answer = input('Should I start training a new network? (y/n)')
+    if answer == 'n':
+        exit()
     args.bootstrap = ''
 
 if args.colab:
-    midi_dataset = vae.midi_dataloader.MIDIDataset('data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=False)
+    midi_dataset = vae.midi_dataloader.MIDIDataset('../data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=False)
 else:
     midi_dataset = vae.midi_dataloader.MIDIDataset('../data', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=True)
 
@@ -69,7 +77,7 @@ def train(epoch):
     print('====> Epoch: {} Average train loss: {:.4f}'.format(epoch, train_loss / len(train_loader)))
 
     if args.colab:
-        save_path = f'model_states/model_epoch_{epoch}.tar'
+        save_path = f'../model_states/model_epoch_{epoch}.tar'
     else:
         save_path = f'../model_states/model_epoch_{epoch}.tar'
     torch.save({
@@ -130,7 +138,7 @@ def sample(name, cycle):
 
         # save midi to specified location
         if args.colab:
-            save_path = f'results/sample/sample_epoch_{name}.midi'
+            save_path = f'../results/sample/sample_epoch_{name}.midi'
         else:
             save_path = f'../results/sample/sample_epoch_{name}.midi'
         midi_from_proll.write(save_path)
@@ -139,7 +147,6 @@ def sample(name, cycle):
 
 if __name__ == "__main__":
     c_epoch = 0
-    model = vae.vae.MIDI(88,300,64,args.sequence_length)
 
     # load the model parameters from the saved file (.tar extension)
     if args.bootstrap:
@@ -155,9 +162,6 @@ if __name__ == "__main__":
         print('Bootstrapping model from {}'.format(args.bootstrap))
         if not args.generative:
             print('Continuing training from epoch: {}\n'.format(c_epoch+1))
-
-    model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
     # training and saving one sample after each epochs
     if not args.generative:
