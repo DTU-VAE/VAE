@@ -5,11 +5,8 @@ import pickle
 import pretty_midi
 import torch
 from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
-import sys
+from tqdm import tqdm # used to pretty print loading progress
 
-## TODO
-# Remove modifiers
-# Filter given signature
 
 class MIDIDataset(Dataset):
     def __init__(self, root_path, sequence_length=50, fs=16, year=-1, add_limit_tokens=True, binarize=True, save_pickle=False):
@@ -19,12 +16,13 @@ class MIDIDataset(Dataset):
         self.binarize = binarize
         self.save_pickle = save_pickle
 
-        # Load pickle if exists and return
+        # Load pickle if it exists and return
         if add_limit_tokens:
             pickled_file = root_path + "/pickle/year_" + year + "_89.pkl"
         else:
             pickled_file = root_path + "/pickle/year_" + year + "_88.pkl"
         if Path(pickled_file).is_file():
+            print('Found pickle dataset at {}. Start loading...'.format(pickled_file))
             with open(pickled_file, 'rb') as f:
                 pickle_content = pickle.load(f)
                 self.midi_data = pickle_content[0]
@@ -41,14 +39,11 @@ class MIDIDataset(Dataset):
             if year == -1 or year in dirpath:
                 self.midi_files.extend(ff)
 
-        # Logging
-        counter = 0
-        self.file_count = len(self.midi_files)
-
         self.dataset_length = 0
         self.end_tokens = []
         self.midi_data = []
-        for idx, file in enumerate(self.midi_files):
+        # tqdm() only perform pretty loading print, does not interact with the data in any other way
+        for idx, file in enumerate(tqdm(self.midi_files)):
             piano_midi = pretty_midi.PrettyMIDI(file)
             piano_roll = piano_midi.get_piano_roll(fs=fs)[21:109, :]
             if self.add_limit_tokens:
@@ -61,10 +56,7 @@ class MIDIDataset(Dataset):
 
             self.dataset_length += piano_roll.shape[1] - (self.sequence_length - 1) # Remove uncomplete sequences from choices
             self.end_tokens.append(self.dataset_length-1)
-            sys.stdout.write("\r%d%%" % (counter / self.file_count * 100 + 1))
-            sys.stdout.flush()
-            counter+=1
-        print("\nData is loaded!")
+        print('Loaded dataset. Size = {}'.format(self.dataset_length))
 
         # Pickle dataset
         if self.save_pickle:
@@ -95,6 +87,7 @@ class MIDIDataset(Dataset):
         sequence = sequence.astype(np.float32)
 
         # Binarize if set
+        #TODO: instead of binarization, should we instead normalize between 0,1?
         if self.binarize:
             sequence = np.clip(sequence, 0, 1)
 
@@ -102,6 +95,19 @@ class MIDIDataset(Dataset):
     
 
 def split_dataset(dataset, test_split=0.15, validation_split=0.15, shuffle=True):
+    """
+    Splits a given dataset into train, test, and validation sets.
+    The train set is given by the ratio 1-(test_split+validation split).
+
+    Arguments:
+        dataset (Dataset): the dataset to be split
+        test_split (float): ratio of the total (1) data to be split into test set
+        validation_split (float): ratio of the total (1) data to be split into validation set
+        shuffle (bool): indicates whether the dataset indices are randomly distributed within the splits
+
+    Returns:
+        (train_sampler, test_sampler, validation_sampler) (tuple): SubsetRandomSampler instances for train, test, and validation
+    """
 
     # Creating data indices for training and validation splits
     dataset_size = len(dataset)
