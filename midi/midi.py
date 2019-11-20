@@ -14,15 +14,15 @@ parser.add_argument('--epochs', type=int, default=1, metavar='N',
 parser.add_argument('--batch-size', type=int, default=10, metavar='N',
                     help='input batch size for training (default: 10)')
 parser.add_argument('--sequence-length', type=int, default=50, metavar='N',
-                    help='sequence length of input data to LSTM (default: 16)')
+                    help='sequence length of input data to LSTM (default: 50)')
 parser.add_argument('--colab', action='store_true', default=False,
                     help='indicates whether script is running on Google Colab')
 parser.add_argument('--log-interval', type=int, default=1000, metavar='N',
-                    help='how many batches to wait before logging training status')
-parser.add_argument('--bootstrap', type=str, default='../model_states/model_epoch_2.tar',
+                    help='how many batches to wait before logging training status (default: 1000)')
+parser.add_argument('--bootstrap', type=str, default='',
                     help='specifies the path to the model.tar to load the model from')
-parser.add_argument('--training', type=bool, default=False,
-                    help='indicates whether the script will train the or just sample from a loaded model')
+parser.add_argument('--generative', action='store_true', default=False,
+                    help='indicates whether the model is trained or only used for generation (default: False)')
 args = parser.parse_args()
 
 
@@ -44,7 +44,7 @@ train_loader      = DataLoader(midi_dataset, batch_size=args.batch_size, sampler
 test_loader       = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=test_sampler,       drop_last=True)
 validation_loader = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=validation_sampler, drop_last=True)
 
-model = vae.vae.MIDI(88,300,64,args.sequence_length).to(device)
+model = vae.vae.MIDI(88,300,64,args.sequence_length)
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
 
@@ -67,8 +67,9 @@ def train(epoch):
                 epoch, batch_idx * len(data), args.batch_size*len(train_loader),
                 100. * batch_idx / len(train_loader),
                 loss.item() / len(data)))
+            break
 
-    print('====> Epoch: {} Average loss: {:.4f}'.format(epoch, train_loss / len(train_loader)))
+    print('====> Epoch: {} Average train loss: {:.4f}'.format(epoch, train_loss / len(train_loader)))
 
     if args.colab:
         save_path = f'model_states/model_epoch_{epoch}.tar'
@@ -83,8 +84,33 @@ def train(epoch):
     #TODO: Decide what to save
 
 
+def validate(epoch):
+    model.eval()
+    valid_loss = 0
+    for batch_idx, data in enumerate(validation_loader):
+        data = data.to(device)
+        recon_batch, mu, logvar = model(data)
+        loss = loss_function(recon_batch, data, mu, logvar)
+        valid_loss += loss.item()
+        break
+    
+    print('====> Epoch: {} Average validation loss: {:.4f}'.format(epoch, valid_loss / len(validation_loader)))
+
+
+def test(epoch):
+    model.eval()
+    test_loss = 0
+    for batch_idx, data in enumerate(test_loader):
+        data = data.to(device)
+        recon_batch, mu, logvar = model(data)
+        loss = loss_function(recon_batch, data, mu, logvar)
+        test_loss += loss.item()
+        break
+
+    print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, test_loss / len(test_loader)))
+
+
 def sample(name, cycle):
-    print("Preparing sample...")
     with torch.no_grad():
         # initialize the first z latent variable and the very first note (x0) which starts the melody 
         sample_z = torch.randn(1, 1, model.embedding_size).to(device)
@@ -103,9 +129,15 @@ def sample(name, cycle):
 
         # convert piano roll to midi
         program = pretty_midi.instrument_name_to_program('Acoustic Grand Piano')
-        midi_from_proll = vae.midi_utils.piano_roll_to_pretty_midi(all_samples, fs = 4, program = program) # reduced frequency to be able to hear the generated 'music'
-        midi_from_proll.write(f'../sample_{name}.midi')
-        print("Success, sample_" + name + ".midi is saved in the VAE folder!")
+        midi_from_proll = vae.midi_utils.piano_roll_to_pretty_midi(all_samples, fs = 4, program = program) #TEST: reduced frequency to be able to hear the generated 'music'
+
+        # save midi to specified location
+        if args.colab:
+            save_path = f'results/sample/sample_epoch_{name}.midi'
+        else:
+            save_path = f'../results/sample/sample_epoch_{name}.midi'
+        midi_from_proll.write(save_path)
+        print('Saved midi sample at {}'.format(save_path))
 
 
 if __name__ == "__main__":
@@ -113,23 +145,28 @@ if __name__ == "__main__":
 
     # load the model parameters from the saved file (.tar extension)
     if args.bootstrap:
-        if torch.cuda.is_available():
-            map_location=lambda storage, loc: storage.cuda()
-        else:
-            map_location='cpu'
-        checkpoint = torch.load(args.bootstrap, map_location=map_location)
+        #if torch.cuda.is_available():
+        #    map_location=lambda storage, loc: storage.cuda()
+        #else:
+        #    map_location='cpu'
+        checkpoint = torch.load(args.bootstrap, map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         c_epoch = checkpoint['epoch']
         loss = checkpoint['loss']
-        if args.training:
-            print('Bootstrapping model from {}\nContinuing training from epoch: {}\n'.format(args.bootstrap, c_epoch+1))
+        print('Bootstrapping model from {}'.format(args.bootstrap))
+        if not args.generative:
+            print('Continuing training from epoch: {}\n'.format(c_epoch+1))
+
+    model.to(device)
 
     # training and saving one sample after each epochs
-    if args.training:
+    if not args.generative:
         for epoch in range(c_epoch+1, (c_epoch + args.epochs + 1)):
             train(epoch)
+            validate(epoch)
             sample(name=epoch, cycle=4)
+        test((c_epoch + args.epochs))
     else:
-        print("Sampling from loaded model: " + args.bootstrap)
+        print('Generating sample from model')
         sample(name='without_training', cycle=4)
