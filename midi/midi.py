@@ -4,6 +4,7 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 from pathlib import Path
 import numpy as np
+from time import time
 import pretty_midi
 import vae
 
@@ -27,6 +28,7 @@ args = parser.parse_args()
 #TODO: add time difference print for training (total train time)
 def train(epoch):
     model.train()
+    start_time = time()
     train_loss = 0
     for batch_idx, data in enumerate(train_loader):
         data = data.to(device)
@@ -38,12 +40,13 @@ def train(epoch):
         optimizer.step()
 
         if args.log_interval != 0 and batch_idx % args.log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tElapsed time: {:.3f} min'.format(
                 epoch, batch_idx, len(train_loader),
                 100. * batch_idx / len(train_loader),
-                loss.item()))
+                loss.item(),
+                (time() - start_time)/60.0))
 
-    print('====> Epoch: {} Average train loss: {:.4f}'.format(epoch, train_loss / len(train_loader)))
+    print('====> Epoch: {} Average train loss: {:.4f}\tTotal train time: {:.3f}'.format(epoch, train_loss / len(train_loader),(time()-start_time)/60.0))
 
     #TODO: Decide what to save
     save_path = f'../model_states/model_epoch_{epoch}.tar'
