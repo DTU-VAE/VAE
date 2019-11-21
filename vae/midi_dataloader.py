@@ -32,6 +32,7 @@ class MIDIDataset(Dataset):
 
             return
 
+        #TODO: we need to filter the dataset (potentially) and only include 4/4 maybe other similarity as well..
         # Create dataset
         self.midi_files = []
         for (dirpath, dirnames, filenames) in walk(root_path):

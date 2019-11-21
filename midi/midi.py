@@ -44,7 +44,7 @@ def train(epoch):
                 100. * batch_idx / len(train_loader),
                 loss.item()))
 
-    print('====> Epoch: {} Average train loss: {:.4f}'.format(epoch, np.mean(train_loss)))
+    print('====> Epoch: {} Average train loss: {:.4f}'.format(epoch, train_loss / len(train_loader)))
 
     #TODO: Decide what to save
     save_path = f'../model_states/model_epoch_{epoch}.tar'
@@ -66,7 +66,7 @@ def validate(epoch):
         loss = loss_function(recon_batch, data, mu, logvar)
         valid_loss += loss.item()
     
-    print('====> Epoch: {} Average validation loss: {:.4f}'.format(epoch, np.mean(valid_loss)))
+    print('====> Epoch: {} Average validation loss: {:.4f}'.format(epoch, valid_loss / len(validation_loader)))
 
 
 def test(epoch):
@@ -79,7 +79,7 @@ def test(epoch):
         test_loss += loss.item()
         #TODO: implement reconstruction sampling and saving
 
-    print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, np.mean(test_loss)))
+    print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, test_loss / len(test_loader)))
 
 
 def generate_beat(model, x0, z0, beat_length=16): #TODO: check sample generation. This is the loop which feeds back always the z and the previous result of the network by using 1 more cell per round. (BERCI)
