@@ -33,18 +33,18 @@ def train(epoch):
         data = data.to(device)
         optimizer.zero_grad()
         recon_batch, mu, logvar = model(data)
-        loss = loss_function(recon_batch, data, mu, logvar)
+        loss = loss_function(recon_batch, data, mu, logvar) # sum within each batch, mean over batches
         loss.backward()
         train_loss += loss.item()
         optimizer.step()
 
         if args.log_interval != 0 and batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), args.batch_size*len(train_loader),
+                epoch, batch_idx, len(train_loader),
                 100. * batch_idx / len(train_loader),
-                loss.item() / len(data)))
+                loss.item()))
 
-    print('====> Epoch: {} Average train loss: {:.4f}'.format(epoch, train_loss / len(train_loader)))
+    print('====> Epoch: {} Average train loss: {:.4f}'.format(epoch, np.mean(train_loss)))
 
     #TODO: Decide what to save
     save_path = f'../model_states/model_epoch_{epoch}.tar'
@@ -66,7 +66,7 @@ def validate(epoch):
         loss = loss_function(recon_batch, data, mu, logvar)
         valid_loss += loss.item()
     
-    print('====> Epoch: {} Average validation loss: {:.4f}'.format(epoch, valid_loss / len(validation_loader)))
+    print('====> Epoch: {} Average validation loss: {:.4f}'.format(epoch, np.mean(valid_loss)))
 
 
 def test(epoch):
@@ -79,7 +79,7 @@ def test(epoch):
         test_loss += loss.item()
         #TODO: implement reconstruction sampling and saving
 
-    print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, test_loss / len(test_loader)))
+    print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, np.mean(test_loss)))
 
 
 def generate_beat(model, x0, z0, beat_length=16): #TODO: check sample generation. This is the loop which feeds back always the z and the previous result of the network by using 1 more cell per round. (BERCI)
@@ -88,7 +88,7 @@ def generate_beat(model, x0, z0, beat_length=16): #TODO: check sample generation
         output = model.decode(zx)
         z  = torch.cat([z0 for _ in range(n+2)], 1) # merging the original z with itself, it needs to have the same sequence size as the next x input
         x  = torch.cat([x0, output], 1)
-        #x  = torch.bernoulli(x) #TODO: check if this is needed
+        x  = torch.bernoulli(x) #TODO: check if this is needed
         zx = torch.cat([x, z], 2) # merging the z-s with the inputs (x0 + the last output)
     return x
 
@@ -111,7 +111,7 @@ def sample(name, cycle):
         
         # generate piano roll from beats    
         all_samples = torch.cat(samples, 1)
-        all_samples = torch.bernoulli(all_samples) #TODO: this needs to be removed if samples are already binary
+        #all_samples = torch.bernoulli(all_samples) #TODO: this needs to be removed if samples are already binary
         all_samples = all_samples * 100
         all_samples = all_samples.view(88, -1)
 
