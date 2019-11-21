@@ -25,7 +25,7 @@ parser.add_argument('--generative', action='store_true', default=False,
                     help='indicates whether the model is trained or only used for generation (default: False)')
 args = parser.parse_args()
 
-
+#TODO: add time difference print for training (total train time)
 def train(epoch):
     model.train()
     train_loss = 0
