@@ -14,7 +14,7 @@ class MIDI(nn.Module):
         self.last_cell_only = last_cell_only
 
         # encode rnn
-        self.rnn1 = nn.LSTM(self.input_size,self.hidden_size,num_layers=1,batch_first=True,dropout=0,bidirectional=False)
+        self.rnn1 = nn.LSTM(self.input_size,self.hidden_size,num_layers=10,batch_first=True,dropout=0,bidirectional=False)
 
         # encode linear
         self.fc1 = nn.Linear(self.hidden_size, 500)
@@ -28,7 +28,7 @@ class MIDI(nn.Module):
         #self.fc4 = nn.Linear(500, self.input_size)
 
         # deconde rnn
-        self.drnn1 = nn.LSTM(self.input_size+self.embedding_size,self.input_size,num_layers=1,batch_first=True,dropout=0,bidirectional=False)
+        self.drnn1 = nn.LSTM(self.input_size+self.embedding_size,self.input_size,num_layers=10,batch_first=True,dropout=0,bidirectional=False)
 
         # activation function used
         self.activation = nn.ReLU()

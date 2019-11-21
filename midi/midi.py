@@ -15,8 +15,6 @@ parser.add_argument('--batch-size', type=int, default=10, metavar='N',
                     help='input batch size for training (default: 10)')
 parser.add_argument('--sequence-length', type=int, default=50, metavar='N',
                     help='sequence length of input data to LSTM (default: 50)')
-#parser.add_argument('--colab', action='store_true', default=False,
-#                    help='indicates whether script is running on Google Colab')
 parser.add_argument('--log-interval', type=int, default=1000, metavar='N',
                     help='how many batches to wait before logging training status (default: 1000)')
 parser.add_argument('--bootstrap', type=str, default='', metavar='S',
@@ -24,6 +22,7 @@ parser.add_argument('--bootstrap', type=str, default='', metavar='S',
 parser.add_argument('--generative', action='store_true', default=False,
                     help='indicates whether the model is trained or only used for generation (default: False)')
 args = parser.parse_args()
+
 
 #TODO: add time difference print for training (total train time)
 def train(epoch):

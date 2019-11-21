@@ -32,7 +32,7 @@ class MIDIDataset(Dataset):
 
             return
 
-        #TODO: we need to filter the dataset (potentially) and only include 4/4 maybe other similarity as well..
+        #TODO: we need to filter the dataset (potentially) and only include 4/4 maybe other similarity as well.. (BERCI)
         # Create dataset
         self.midi_files = []
         for (dirpath, dirnames, filenames) in walk(root_path):
@@ -92,7 +92,6 @@ class MIDIDataset(Dataset):
         sequence = sequence.astype(np.float32)
 
         # Binarize if set
-        #TODO: instead of binarization, should we instead normalize between 0,1?
         if self.binarize:
             sequence = np.clip(sequence, 0, 1)
 
