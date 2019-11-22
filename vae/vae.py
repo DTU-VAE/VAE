@@ -71,7 +71,7 @@ class MIDI(nn.Module):
     def forward(self, x):
         mu, logvar = self.encode(x[:, 1:, :])
         z = self.reparameterize(mu, logvar)
-        z = z.view(10,1,64) # add a third dimension (middle) to be able to concatenate with x
+        z = torch.unsqueeze(z,1) # add a third dimension (middle) to be able to concatenate with x
         z = torch.cat([z for _ in range(self.sequence_length-1)], 1)
         zx = torch.cat((x[:, :-1, :], z), 2)
         out = self.decode(zx)

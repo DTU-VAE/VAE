@@ -14,7 +14,7 @@ parser.add_argument('--epochs', type=int, default=1, metavar='N',
                     help='number of epochs to train (default: 1)')
 parser.add_argument('--batch-size', type=int, default=10, metavar='N',
                     help='input batch size for training (default: 10)')
-parser.add_argument('--sequence-length', type=int, default=50, metavar='N',
+parser.add_argument('--sequence-length', type=int, default=16, metavar='N',
                     help='sequence length of input data to LSTM (default: 50)')
 parser.add_argument('--log-interval', type=int, default=1000, metavar='N',
                     help='how many batches to wait before logging training status (default: 1000)')
@@ -46,7 +46,8 @@ def train(epoch):
                 loss.item(),
                 (time() - start_time)/60.0))
 
-    print('====> Epoch: {} Average train loss: {:.4f}\tTotal train time: {:.3f}'.format(epoch, train_loss / len(train_loader),(time()-start_time)/60.0))
+    #TODO: print average train time per epoch?
+    print('====> Epoch: {} Average train loss: {:.4f}\tTotal train time: {:.3f} min'.format(epoch, train_loss / len(train_loader),(time()-start_time)/60.0))
 
     #TODO: Decide what to save
     save_path = f'../model_states/model_epoch_{epoch}.tar'
@@ -62,11 +63,12 @@ def train(epoch):
 def validate(epoch):
     model.eval()
     valid_loss = 0
-    for batch_idx, data in enumerate(validation_loader):
-        data = data.to(device)
-        recon_batch, mu, logvar = model(data)
-        loss = loss_function(recon_batch, data, mu, logvar)
-        valid_loss += loss.item()
+    with torch.no_grad():
+        for batch_idx, data in enumerate(validation_loader):
+            data = data.to(device)
+            recon_batch, mu, logvar = model(data)
+            loss = loss_function(recon_batch, data, mu, logvar)
+            valid_loss += loss.item()
     
     print('====> Epoch: {} Average validation loss: {:.4f}'.format(epoch, valid_loss / len(validation_loader)))
 
@@ -74,12 +76,29 @@ def validate(epoch):
 def test(epoch):
     model.eval()
     test_loss = 0
-    for batch_idx, data in enumerate(test_loader):
-        data = data.to(device)
-        recon_batch, mu, logvar = model(data)
-        loss = loss_function(recon_batch, data, mu, logvar)
-        test_loss += loss.item()
-        #TODO: implement reconstruction sampling and saving
+    with torch.no_grad():
+        for batch_idx, data in enumerate(test_loader):
+            data = data.to(device)
+            recon_batch, mu, logvar = model(data)
+            loss = loss_function(recon_batch, data, mu, logvar)
+            test_loss += loss.item()
+
+            #TEST: implement reconstruction sampling and saving
+            if batch_idx == 0:
+                origi = data[0,1:,:].cpu()
+                recon = torch.bernoulli(recon_batch[0,:,:]).cpu()
+                concat = torch.cat([origi, recon], 0)
+                concat = concat * 100
+                concat = torch.t(concat)
+
+                # convert piano roll to midi
+                program = pretty_midi.instrument_name_to_program('Acoustic Grand Piano')
+                midi_from_proll = vae.midi_utils.piano_roll_to_pretty_midi(concat, fs = 16, program = program)
+
+                # save midi to specified location
+                save_path = f'../results/reconstruction/reconstruction_epoch_{epoch}.midi'
+                midi_from_proll.write(save_path)
+                print('Saved midi reconstruction at {}'.format(save_path))
 
     print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, test_loss / len(test_loader)))
 
@@ -115,7 +134,7 @@ def sample(name, cycle):
         all_samples = torch.cat(samples, 1)
         #all_samples = torch.bernoulli(all_samples) #TODO: this needs to be removed if samples are already binary
         all_samples = all_samples * 100
-        all_samples = all_samples.view(88, -1)
+        all_samples = torch.t(torch.squeeze(all_samples))
 
         # convert piano roll to midi
         program = pretty_midi.instrument_name_to_program('Acoustic Grand Piano')
