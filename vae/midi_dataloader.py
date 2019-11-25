@@ -59,8 +59,9 @@ class MIDIDataset(Dataset):
                     for note in instrument.notes:
                         note.pitch -= midi_key
 
+            fs_new = piano_midi.estimate_tempo() * 16.0 / 60.0;
 
-            piano_roll = piano_midi.get_piano_roll(fs=fs)[21:109, :]
+            piano_roll = piano_midi.get_piano_roll(fs=fs_new)[21:109, :]
             if self.add_limit_tokens:
                 limit_array = np.zeros((1, piano_roll.shape[1]))
                 limit_array[:,0] = 1

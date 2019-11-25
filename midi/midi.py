@@ -46,6 +46,9 @@ def train(epoch):
                 loss.item(),
                 (time() - start_time)/60.0))
 
+        if batch_idx == 100:
+            break
+
     #TODO: print average train time per epoch?
     print('====> Epoch: {} Average train loss: {:.4f}\tTotal train time: {:.3f} min'.format(epoch, train_loss / len(train_loader),(time()-start_time)/60.0))
 
@@ -138,7 +141,7 @@ def sample(name, cycle):
 
         # convert piano roll to midi
         program = pretty_midi.instrument_name_to_program('Acoustic Grand Piano')
-        midi_from_proll = vae.midi_utils.piano_roll_to_pretty_midi(all_samples, fs = 16, program = program) #TEST: reduced frequency to be able to hear the generated 'music'
+        midi_from_proll = vae.midi_utils.piano_roll_to_pretty_midi(all_samples, fs = 8, program = program) #TEST: reduced frequency to be able to hear the generated 'music'
 
         # save midi to specified location
         save_path = f'../results/sample/sample_epoch_{name}.midi'
