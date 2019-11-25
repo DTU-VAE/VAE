@@ -115,7 +115,7 @@ class MIDIDataset(Dataset):
 
 class SINUSDataset(Dataset):
     def __init__(self, sequence_length):
-        self.sequence = 16* 8
+        self.sequence = 16 * 8
         x = np.linspace(-np.pi, np.pi, self.sequence + 1)
         features = [int(i) for i in 44 + 43 * np.sin(x)]
 

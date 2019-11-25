@@ -33,6 +33,7 @@ def train(epoch):
     train_loss = 0
     for batch_idx, data in enumerate(train_loader):
         data = data.to(device)
+        #data = torch.zeros_like(data)
         optimizer.zero_grad()
         recon_batch, mu, logvar = model(data)
         loss = loss_function(recon_batch, data, mu, logvar) # sum within each batch, mean over batches
@@ -177,7 +178,7 @@ if __name__ == "__main__":
     #kwargs = {'num_workers': 1, 'pin_memory': True} if cuda else {}
     model = vae.vae.MIDI(88,300,64,args.sequence_length).to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    loss_function = vae.vae.simple_loss #vae.vae.bce_kld_loss
+    loss_function = vae.vae.bce_kld_loss#vae.vae.simple_loss
 
     # load the model parameters from the saved file if given (.tar extension)
     c_epoch = 0
@@ -196,7 +197,7 @@ if __name__ == "__main__":
         # create dataset and loaders
         midi_dataset = vae.midi_dataloader.SINUSDataset(args.sequence_length)
         #midi_dataset = vae.midi_dataloader.MIDIDataset('../data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=False)
-        train_sampler, test_sampler, validation_sampler = vae.midi_dataloader.split_dataset(midi_dataset, test_split=0.15, validation_split=0.15)
+        train_sampler, test_sampler, validation_sampler = vae.midi_dataloader.split_dataset(midi_dataset, test_split=0.15, validation_split=0.15, shuffle=False)
         train_loader      = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=train_sampler,      drop_last=True)
         test_loader       = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=test_sampler,       drop_last=True)
         validation_loader = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=validation_sampler, drop_last=True)
