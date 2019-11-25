@@ -2,6 +2,7 @@ import argparse
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
+import torchvision
 from pathlib import Path
 import numpy as np
 from time import time
@@ -46,8 +47,8 @@ def train(epoch):
                 loss.item(),
                 (time() - start_time)/60.0))
 
-        if batch_idx == 10000:
-            break
+        #if batch_idx == 1:
+        #    break
 
     #TODO: print average train time per epoch?
     print('====> Epoch: {} Average train loss: {:.4f}\tTotal train time: {:.3f} min'.format(epoch, train_loss / len(train_loader),(time()-start_time)/60.0))
@@ -72,7 +73,7 @@ def validate(epoch):
             recon_batch, mu, logvar = model(data)
             loss = loss_function(recon_batch, data, mu, logvar)
             valid_loss += loss.item()
-            break
+            #break
     
     print('====> Epoch: {} Average validation loss: {:.4f}'.format(epoch, valid_loss / len(validation_loader)))
 
@@ -103,7 +104,13 @@ def test(epoch):
                 save_path = f'../results/reconstruction/reconstruction_epoch_{epoch}.midi'
                 midi_from_proll.write(save_path)
                 print('Saved midi reconstruction at {}'.format(save_path))
-                break
+
+                # save piano roll image
+                torchvision.utils.save_image(concat, f'../results/reconstruction/reconstruction_epoch_{epoch}.png')
+             #   plt.figure(figsize=(8, 4))
+	            #plt.imshow(piano_roll)
+	            #plt.show()
+                #break
 
     print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, test_loss / len(test_loader)))
 
@@ -150,6 +157,8 @@ def sample(name, cycle):
         midi_from_proll.write(save_path)
         print('Saved midi sample at {}'.format(save_path))
 
+        torchvision.utils.save_image(all_samples, f'../results/reconstruction/reconstruction_epoch_{epoch}.png')
+
 
 if __name__ == "__main__":
     # check if bootstrapping is possible
@@ -185,7 +194,8 @@ if __name__ == "__main__":
     # if we want to train
     if not args.generative:
         # create dataset and loaders
-        midi_dataset = vae.midi_dataloader.MIDIDataset('../data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=False)
+        midi_dataset = vae.midi_dataloader.SINUSDataset(args.sequence_length)
+        #midi_dataset = vae.midi_dataloader.MIDIDataset('../data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=False)
         train_sampler, test_sampler, validation_sampler = vae.midi_dataloader.split_dataset(midi_dataset, test_split=0.15, validation_split=0.15)
         train_loader      = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=train_sampler,      drop_last=True)
         test_loader       = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=test_sampler,       drop_last=True)

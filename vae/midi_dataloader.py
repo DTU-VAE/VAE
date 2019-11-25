@@ -111,6 +111,35 @@ class MIDIDataset(Dataset):
             sequence = np.clip(sequence, 0, 1)
 
         return np.transpose(sequence)
+
+
+class SINUSDataset(Dataset):
+    def __init__(self, sequence_length):
+        self.sequence = 16* 8
+        x = np.linspace(-np.pi, np.pi, self.sequence + 1)
+        features = [int(i) for i in 44 + 43 * np.sin(x)]
+
+        sinus_array = []
+        for i in range(self.sequence):
+            column = np.zeros(88)
+            column[features[i]] = 1
+            sinus_array.append(column)
+        self.sinus_roll = np.transpose(np.asarray(sinus_array))
+        self.sequence_length = sequence_length
+
+    def __len__(self):
+        return (self.sequence-self.sequence_length)*1000
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        idx = idx % (self.sequence-self.sequence_length)
+
+        sequence = self.sinus_roll[:, idx:idx+self.sequence_length]
+        sequence = sequence.astype(np.float32)
+
+        return np.transpose(sequence)
     
 
 def split_dataset(dataset, test_split=0.15, validation_split=0.15, shuffle=True):
