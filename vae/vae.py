@@ -25,10 +25,10 @@ class MIDI(nn.Module):
         
         # decode linear
         #self.fc3 = nn.Linear(self.input_size+self.embedding_size, 500)
-        #self.fc4 = nn.Linear(500, self.input_size)
+        self.fc4 = nn.Linear(self.hidden_size, self.input_size)
 
         # deconde rnn
-        self.drnn1 = nn.LSTM(self.input_size+self.embedding_size,self.input_size,num_layers=1,batch_first=True,dropout=0,bidirectional=False)
+        self.drnn1 = nn.LSTM(self.input_size+self.embedding_size,self.hidden_size,num_layers=1,batch_first=True,dropout=0,bidirectional=False)
 
         # activation function used
         self.activation = nn.ReLU()
@@ -66,6 +66,8 @@ class MIDI(nn.Module):
 
         x, (h, c) = self.drnn1(zx)
 
+        x = self.activation(self.fc4(x))
+        #TODO: add linear layer to hidden states
         return torch.sigmoid(x)
 
     def forward(self, x):
@@ -73,6 +75,7 @@ class MIDI(nn.Module):
         z = self.reparameterize(mu, logvar)
         z = torch.unsqueeze(z,1) # add a third dimension (middle) to be able to concatenate with x
         z = torch.cat([z for _ in range(self.sequence_length-1)], 1)
+        z = torch.zeros_like(z)
         zx = torch.cat((x[:, :-1, :], z), 2)
         out = self.decode(zx)
         return out, mu, logvar

@@ -46,7 +46,7 @@ def train(epoch):
                 loss.item(),
                 (time() - start_time)/60.0))
 
-        if batch_idx == 100:
+        if batch_idx == 10000:
             break
 
     #TODO: print average train time per epoch?
@@ -72,6 +72,7 @@ def validate(epoch):
             recon_batch, mu, logvar = model(data)
             loss = loss_function(recon_batch, data, mu, logvar)
             valid_loss += loss.item()
+            break
     
     print('====> Epoch: {} Average validation loss: {:.4f}'.format(epoch, valid_loss / len(validation_loader)))
 
@@ -102,10 +103,11 @@ def test(epoch):
                 save_path = f'../results/reconstruction/reconstruction_epoch_{epoch}.midi'
                 midi_from_proll.write(save_path)
                 print('Saved midi reconstruction at {}'.format(save_path))
+                break
 
     print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, test_loss / len(test_loader)))
 
-
+#TODO: sample only last hidden state
 def generate_beat(model, x0, z0, beat_length=16): #TODO: check sample generation. This is the loop which feeds back always the z and the previous result of the network by using 1 more cell per round. (BERCI)
     zx = torch.cat([x0, z0], 2) # creating the initial zx from the x0 start vector and z
     for n in range(beat_length-1):
