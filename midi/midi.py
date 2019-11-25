@@ -17,7 +17,7 @@ parser.add_argument('--batch-size', type=int, default=10, metavar='N',
                     help='input batch size for training (default: 10)')
 parser.add_argument('--sequence-length', type=int, default=16, metavar='N',
                     help='sequence length of input data to LSTM (default: 50)')
-parser.add_argument('--log-interval', type=int, default=1000, metavar='N',
+parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status (default: 1000)')
 parser.add_argument('--bootstrap', type=str, default='', metavar='S',
                     help='specifies the path to the model.tar to load the model from')
@@ -176,8 +176,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #kwargs = {'num_workers': 1, 'pin_memory': True} if cuda else {}
     model = vae.vae.MIDI(88,300,64,args.sequence_length).to(device)
-    #optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    optimizer = optim.Adam(model.parameters(), lr=0.1)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
     loss_function = vae.vae.simple_loss #vae.vae.bce_kld_loss
 
     # load the model parameters from the saved file if given (.tar extension)

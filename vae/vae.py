@@ -119,6 +119,12 @@ def bce_kld_loss(recon_x, x, mu, logvar):
     return BCE + KLD
 
 def simple_loss(recon_x, x, _, __):
+    mse = F.mse_loss(recon_x, x, reduction='sum')
+    return mse
+
+    BCE = F.binary_cross_entropy(recon_x, x, reduction='sum')
+    return BCE
+
     BCE = F.binary_cross_entropy(recon_x, x, reduction='none')
     BCE = torch.sum(BCE, (1,2)) # sum over 2nd and 3rd dimensions (keeping it separate for each batch)
     return torch.mean(BCE)
