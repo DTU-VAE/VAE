@@ -206,7 +206,7 @@ if __name__ == "__main__":
         for epoch in range(c_epoch+1, (c_epoch + args.epochs + 1)):
             train(epoch)
             validate(epoch)
-            sample(name=epoch, cycle=4)
+            #sample(name=epoch, cycle=4)
         test((c_epoch + args.epochs))
     # otherwise simply generate a sample from the loaded model
     else:
