@@ -59,6 +59,7 @@ class MIDI(nn.Module):
 
         # activation function used
         self.activation = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
 
     def encode(self, x):
         x, (h, c) = self.rnn1(x)
@@ -94,7 +95,8 @@ class MIDI(nn.Module):
         x, (h, c) = self.drnn1(zx)
 
         #TODO: add linear layer to hidden states
-        x = self.activation(self.fc4(x))
+        return self.sigmoid(fc4(x))
+        #x = self.activation(self.fc4(x))
 
         return x
         return torch.sigmoid(x)
@@ -104,7 +106,7 @@ class MIDI(nn.Module):
         z = self.reparameterize(mu, logvar)
         z = torch.unsqueeze(z,1) # add a third dimension (middle) to be able to concatenate with x
         z = torch.cat([z for _ in range(self.sequence_length-1)], 1)
-        z = torch.zeros_like(z)
+        #z = torch.zeros_like(z)
         zx = torch.cat((x[:, :-1, :], z), 2)
         out = self.decode(zx)
         return out, mu, logvar
@@ -122,12 +124,7 @@ def bce_kld_loss(recon_x, x, mu, logvar):
     return BCE + KLD
 
 def simple_loss(recon_x, x, _, __):
-    mse = F.mse_loss(recon_x, x, reduction='sum')
-    return mse
-
-    BCE = F.binary_cross_entropy(recon_x, x, reduction='sum')
-    return BCE
-
     BCE = F.binary_cross_entropy(recon_x, x, reduction='none')
     BCE = torch.sum(BCE, (1,2)) # sum over 2nd and 3rd dimensions (keeping it separate for each batch)
-    return torch.mean(BCE)
+    BCE = torch.mean(BCE) # average over batch losses
+    return BCE
