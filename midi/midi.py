@@ -157,7 +157,7 @@ def sample(name, cycle):
         midi_from_proll.write(save_path)
         print('Saved midi sample at {}'.format(save_path))
 
-        torchvision.utils.save_image(all_samples, f'../results/reconstruction/reconstruction_epoch_{epoch}.png')
+        torchvision.utils.save_image(all_samples, f'../results/sample/sample_epoch_{epoch}.png')
 
 
 if __name__ == "__main__":
@@ -176,8 +176,9 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #kwargs = {'num_workers': 1, 'pin_memory': True} if cuda else {}
     model = vae.vae.MIDI(88,300,64,args.sequence_length).to(device)
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    loss_function = vae.vae.bce_kld_loss
+    #optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = optim.Adam(model.parameters(), lr=0.1)
+    loss_function = vae.vae.simple_loss #vae.vae.bce_kld_loss
 
     # load the model parameters from the saved file if given (.tar extension)
     c_epoch = 0
