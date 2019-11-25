@@ -47,6 +47,19 @@ class MIDIDataset(Dataset):
         # tqdm() only perform pretty loading print, does not interact with the data in any other way
         for idx, file in enumerate(tqdm(self.midi_files)):
             piano_midi = pretty_midi.PrettyMIDI(file)
+            
+            #chroma = piano_midi.get_chroma(fs=fs)
+            total_velocity = sum(sum(piano_midi.get_chroma()))
+            semitones = [sum(semitone)/total_velocity for semitone in piano_midi.get_chroma()]
+            midi_key = np.argmax(semitones)
+            # Shift all notes up by midi_key semitones
+            for instrument in piano_midi.instruments:
+                # Don't want to shift drum notes
+                if not instrument.is_drum:
+                    for note in instrument.notes:
+                        note.pitch -= midi_key
+
+
             piano_roll = piano_midi.get_piano_roll(fs=fs)[21:109, :]
             if self.add_limit_tokens:
                 limit_array = np.zeros((1, piano_roll.shape[1]))
@@ -55,6 +68,7 @@ class MIDIDataset(Dataset):
                 piano_roll = np.vstack((piano_roll, limit_array))
 
             self.midi_data.append(piano_roll)
+            #self.midi_data.append(chroma)
 
             self.dataset_length += piano_roll.shape[1] - (self.sequence_length - 1) # Remove uncomplete sequences from choices
             self.end_tokens.append(self.dataset_length-1)

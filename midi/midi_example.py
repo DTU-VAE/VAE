@@ -3,6 +3,25 @@ import numpy as np
 from vae import midi_utils
 
 
+piano_midi = pretty_midi.PrettyMIDI('test_processed.midi')
+            
+#chroma = piano_midi.get_chroma(fs=fs)
+total_velocity = sum(sum(piano_midi.get_chroma()))
+semitones = [sum(semitone)/total_velocity for semitone in piano_midi.get_chroma()]
+midi_key = np.argmax(semitones)
+# Shift all notes up by midi_key semitones
+for instrument in piano_midi.instruments:
+    # Don't want to shift drum notes
+    if not instrument.is_drum:
+        for note in instrument.notes:
+            note.pitch -= midi_key
+
+piano_midi.write('test_processed2.midi')
+
+
+
+
+"""
 # name of the midi file to load
 midi = 'piano_example'
 
@@ -29,7 +48,7 @@ midi_from_proll.write(f'{midi}_processed.midi')
 
 # synthesize the resulting MIDI data using sine waves
 #audio_data = midi_data.synthesize()
-
+"""
 
 
 
