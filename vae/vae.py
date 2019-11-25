@@ -95,7 +95,7 @@ class MIDI(nn.Module):
         x, (h, c) = self.drnn1(zx)
 
         #TODO: add linear layer to hidden states
-        return self.sigmoid(fc4(x))
+        return self.sigmoid(self.fc4(x))
         #x = self.activation(self.fc4(x))
 
         return x
