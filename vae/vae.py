@@ -4,27 +4,29 @@ from torch.nn import functional as F
 
 
 class MIDI(nn.Module):
-    def __init__(self, input_size, hidden_size, embedding_size, sequence_length, last_cell_only = True):
+    def __init__(self, input_size, hidden_size, embedding_size, sequence_length):
         super(MIDI, self).__init__()
 
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.embedding_size = embedding_size
         self.sequence_length = sequence_length
-        self.last_cell_only = last_cell_only
 
         # encode rnn
-        self.rnn1 = nn.LSTM(self.input_size,self.hidden_size,num_layers=1,batch_first=True,dropout=0,bidirectional=False)
+        self.rnn1 = nn.LSTM(self.input_size,self.hidden_size,num_layers=2,batch_first=True,dropout=0,bidirectional=True)
 
         # encode linear
-        self.fc1 = nn.Linear(self.hidden_size, 500)
+        #self.fc1 = nn.Linear(self.hidden_size, 500)
 
         # laten space (mean, std)
-        self.fc21 = nn.Linear(500, self.embedding_size)
-        self.fc22 = nn.Linear(500, self.embedding_size)
+        linear_in_size = self.hidden_size
+        if self.rnn1.bidirectional:
+            linear_in_size *= 2
+        self.fc21 = nn.Linear(linear_in_size, self.embedding_size)
+        self.fc22 = nn.Linear(linear_in_size, self.embedding_size)
         
         # deconde rnn
-        self.drnn1 = nn.LSTM(self.input_size+self.embedding_size,self.hidden_size,num_layers=1,batch_first=True,dropout=0,bidirectional=False)
+        self.drnn1 = nn.LSTM(self.input_size+self.embedding_size,self.hidden_size,num_layers=2,batch_first=True,dropout=0,bidirectional=False)
 
         # decode linear
         self.fc4 = nn.Linear(self.hidden_size, self.input_size)
@@ -41,12 +43,15 @@ class MIDI(nn.Module):
         # if we only need the last cells output we could do
         # x = x[:, -1, :]
 
-        if self.last_cell_only:
-            x = x[:,-1,:]
+        if self.rnn1.bidirectional:
+            x = x.view(x.shape[0], x.shape[1], int(x.shape[2]/self.hidden_size), self.hidden_size)
+            x_0 = x[:,-1,0,:] # forward direction
+            x_1 = x[:,-1,1,:] # backward direction
+            x = torch.cat([x_0,x_1], 1)
         else:
-            x = x.contiguous().view(-1, self.hidden_size)
+            x = x[:, -1, :]
 
-        x = self.activation(self.fc1(x))
+        #x = self.activation(self.fc1(x))
         
         return self.fc21(x), self.fc22(x)
 
@@ -79,7 +84,7 @@ def bce_kld_loss(recon_x, x, mu, logvar):
     BCE = F.binary_cross_entropy(recon_x, x[:, 1:, :], reduction='none')
     BCE = torch.sum(BCE, (1,2)) # sum over 2nd and 3rd dimensions (keeping it separate for each batch)
     BCE = torch.mean(BCE) # average over batch losses
-    #BCE = F.binary_cross_entropy(recon_x, x[:, 1:, :], reduction='sum') # taken out in favour of above
+    
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), 1) # sum over 2nd dimension
     KLD = torch.mean(KLD) # average over batch losses
     

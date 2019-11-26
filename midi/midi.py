@@ -179,7 +179,7 @@ if __name__ == "__main__":
     # create model, optimizer, and loss function on specific device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #kwargs = {'num_workers': 1, 'pin_memory': True} if cuda else {}
-    model = vae.vae.MIDI(88,300,64,args.sequence_length).to(device)
+    model = vae.vae.MIDI(88,2048,128,args.sequence_length).to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     loss_function = vae.vae.bce_kld_loss
 
