@@ -62,7 +62,7 @@ class MIDIDataset(Dataset):
             # Shift all notes down by transpose_key semitones
             for instrument in piano_midi.instruments:
                 for note in instrument.notes:
-                    note.pitch -= transpose_key
+                    note.pitch -= transpose_key if note.pitch - transpose_key >= 0 else transpose_key + 12
 
             # this is the required sampling frequency to get 16 x 16th notes in a bar (1 bar = 4 beats)
             fs = (piano_midi.estimate_tempo() * 16.0) / (4.0 * 60.0);

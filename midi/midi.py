@@ -30,6 +30,7 @@ def train(epoch):
     model.train()
     start_time = time()
     train_loss = 0
+    all_losses = []
     for batch_idx, data in enumerate(train_loader):
         data = data.to(device)
         optimizer.zero_grad()
@@ -37,6 +38,7 @@ def train(epoch):
         loss = loss_function(recon_batch, data, mu, logvar) # sum within each batch, mean over batches
         loss.backward()
         train_loss += loss.item()
+        all_losses.append(loss.item())
         optimizer.step()
 
         if args.log_interval != 0 and batch_idx % args.log_interval == 0:
@@ -51,6 +53,11 @@ def train(epoch):
 
     #TODO: print average train time per epoch?
     print('====> Epoch: {} Average train loss: {:.4f}\tTotal train time: {:.3f} min'.format(epoch, train_loss / len(train_loader),(time()-start_time)/60.0))
+    # Plot batch losses for each epochs
+    plt.figure()
+    plt.plot(all_losses, 'r')
+    plt.title("Batch losses in epoch " + str(epoch))
+    plt.xlabel('Batches'), plt.ylabel('NLL')
 
     #TODO: Decide what to save
     save_path = f'../model_states/model_epoch_{epoch}.tar'
