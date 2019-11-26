@@ -50,12 +50,11 @@ class MIDI(nn.Module):
         self.fc21 = nn.Linear(500, self.embedding_size)
         self.fc22 = nn.Linear(500, self.embedding_size)
         
-        # decode linear
-        #self.fc3 = nn.Linear(self.input_size+self.embedding_size, 500)
-        self.fc4 = nn.Linear(self.hidden_size, self.input_size)
-
         # deconde rnn
         self.drnn1 = nn.LSTM(self.input_size+self.embedding_size,self.hidden_size,num_layers=1,batch_first=True,dropout=0,bidirectional=False)
+
+        # decode linear
+        self.fc4 = nn.Linear(self.hidden_size, self.input_size)
 
         # activation function used
         self.activation = nn.ReLU()
@@ -87,26 +86,16 @@ class MIDI(nn.Module):
             return mu
 
     def decode(self, zx):
-        #z = self.activation(self.fc3(z))
-        #z = self.activation(self.fc4(z))
-
-        #z = z.view(batch_size, sequence_length, self.hidden_size)
-
         x, (h, c) = self.drnn1(zx)
 
-        #TODO: add linear layer to hidden states
+        #TEST: add linear layer to hidden states
         return self.sigmoid(self.fc4(x))
-        #x = self.activation(self.fc4(x))
-
-        return x
-        return torch.sigmoid(x)
 
     def forward(self, x):
         mu, logvar = self.encode(x[:, 1:, :])
         z = self.reparameterize(mu, logvar)
         z = torch.unsqueeze(z,1) # add a third dimension (middle) to be able to concatenate with x
         z = torch.cat([z for _ in range(self.sequence_length-1)], 1)
-        #z = torch.zeros_like(z)
         zx = torch.cat((x[:, :-1, :], z), 2)
         out = self.decode(zx)
         return out, mu, logvar

@@ -32,7 +32,7 @@ class MIDIDataset(Dataset):
 
             return
 
-        #TODO: we need to filter the dataset (potentially) and only include 4/4 maybe other similarity as well.. (BERCI)
+        #TEST: we need to filter the dataset (potentially) and only include 4/4
         # Create dataset
         self.midi_files = []
         for (dirpath, dirnames, filenames) in walk(root_path):
@@ -47,24 +47,27 @@ class MIDIDataset(Dataset):
         # tqdm() only perform pretty loading print, does not interact with the data in any other way
         for idx, file in enumerate(tqdm(self.midi_files)):
             piano_midi = pretty_midi.PrettyMIDI(file)
-            
+
+            if len(piano_midi.time_signature_changes) != 1 or piano_midi.time_signature_changes[0].numerator != 4 or piano_midi.time_signature_changes[0].denominator != 4:
+                continue # if the time signature of the music is not 4/4 we skip this music
+
+            # get the key of the music (by estimating the dominant semitone)
             total_velocity = sum(sum(piano_midi.get_chroma()))
             semitones = [sum(semitone)/total_velocity for semitone in piano_midi.get_chroma()]
             midi_key = np.argmax(semitones)
-            # Shift all notes down by midi_key semitones if major, midi_key + 3 semitones if minor
-            if semitones[(midi_key + 4) % 12] > semitones[(midi_key + 3) % 12]:
-                transpose_key = midi_key # Major
-            else:
-                transpose_key = midi_key + 3 # Minor
 
-            # Shift all notes up by midi_key semitones
+            # Shift all notes down by midi_key semitones if major, midi_key + 3 semitones if minor
+            transpose_key = midi_key if semitones[(midi_key + 4) % 12] > semitones[(midi_key + 3) % 12] else midi_key + 3
+
+            # Shift all notes down by transpose_key semitones
             for instrument in piano_midi.instruments:
                 for note in instrument.notes:
                     note.pitch -= transpose_key
 
-            fs_new = piano_midi.estimate_tempo() * 4.0 / 60.0;
+            # this is the required sampling frequency to get 16 x 16th notes in a bar (1 bar = 4 beats)
+            fs = (piano_midi.estimate_tempo() * 16.0) / (4.0 * 60.0);
 
-            piano_roll = piano_midi.get_piano_roll(fs=fs_new)[21:109, :]
+            piano_roll = piano_midi.get_piano_roll(fs=fs)[21:109, :]
             if self.add_limit_tokens:
                 limit_array = np.zeros((1, piano_roll.shape[1]))
                 limit_array[:,0] = 1
@@ -72,10 +75,9 @@ class MIDIDataset(Dataset):
                 piano_roll = np.vstack((piano_roll, limit_array))
 
             self.midi_data.append(piano_roll)
-            #self.midi_data.append(chroma)
-
             self.dataset_length += piano_roll.shape[1] - (self.sequence_length - 1) # Remove uncomplete sequences from choices
             self.end_tokens.append(self.dataset_length-1)
+
         print('Loaded dataset. Size = {}'.format(self.dataset_length))
 
         # Pickle dataset

@@ -13,12 +13,12 @@ import vae
 parser = argparse.ArgumentParser(description='VAE MIDI')
 parser.add_argument('--epochs', type=int, default=1, metavar='N',
                     help='number of epochs to train (default: 1)')
-parser.add_argument('--batch-size', type=int, default=10, metavar='N',
-                    help='input batch size for training (default: 10)')
-parser.add_argument('--sequence-length', type=int, default=16, metavar='N',
-                    help='sequence length of input data to LSTM (default: 50)')
-parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-                    help='how many batches to wait before logging training status (default: 1000)')
+parser.add_argument('--batch-size', type=int, default=512, metavar='N',
+                    help='input batch size for training (default: 512)')
+parser.add_argument('--sequence-length', type=int, default=256, metavar='N',
+                    help='sequence length of input data to LSTM (default: 16x16)')
+parser.add_argument('--log-interval', type=int, default=15, metavar='N',
+                    help='how many batches to wait before logging training status (default: 15)')
 parser.add_argument('--bootstrap', type=str, default='', metavar='S',
                     help='specifies the path to the model.tar to load the model from')
 parser.add_argument('--generative', action='store_true', default=False,
@@ -26,14 +26,12 @@ parser.add_argument('--generative', action='store_true', default=False,
 args = parser.parse_args()
 
 
-#TODO: add time difference print for training (total train time)
 def train(epoch):
     model.train()
     start_time = time()
     train_loss = 0
     for batch_idx, data in enumerate(train_loader):
         data = data.to(device)
-        #data = torch.zeros_like(data)
         optimizer.zero_grad()
         recon_batch, mu, logvar = model(data)
         loss = loss_function(recon_batch, data, mu, logvar) # sum within each batch, mean over batches
@@ -158,7 +156,7 @@ def sample(name, cycle):
         midi_from_proll.write(save_path)
         print('Saved midi sample at {}'.format(save_path))
 
-        torchvision.utils.save_image(all_samples, f'../results/sample/sample_epoch_{epoch}.png')
+        torchvision.utils.save_image(all_samples, f'../results/sample/sample_epoch_{name}.png')
 
 
 if __name__ == "__main__":
@@ -197,7 +195,7 @@ if __name__ == "__main__":
     if not args.generative:
         # create dataset and loaders
         #midi_dataset = vae.midi_dataloader.SINUSDataset(args.sequence_length)
-        midi_dataset = vae.midi_dataloader.MIDIDataset('../data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=False)
+        midi_dataset = vae.midi_dataloader.MIDIDataset('../data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=True)
         train_sampler, test_sampler, validation_sampler = vae.midi_dataloader.split_dataset(midi_dataset, test_split=0.15, validation_split=0.15, shuffle=True)
         train_loader      = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=train_sampler,      drop_last=True)
         test_loader       = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=test_sampler,       drop_last=True)
