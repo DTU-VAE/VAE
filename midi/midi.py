@@ -8,7 +8,7 @@ import numpy as np
 from time import time
 import pretty_midi
 import vae
-
+import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser(description='VAE MIDI')
 parser.add_argument('--epochs', type=int, default=1, metavar='N',
