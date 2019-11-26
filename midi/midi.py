@@ -48,13 +48,11 @@ def train(epoch):
                 loss.item(),
                 (time() - start_time)/60.0))
 
-        #if batch_idx == 1:
-        #    break
-
     #TODO: print average train time per epoch?
     print('====> Epoch: {} Average train loss: {:.4f}\tTotal train time: {:.3f} min'.format(epoch, train_loss / len(train_loader),(time()-start_time)/60.0))
 
-    np.save(f'../results/losses/loss_epoch_{epoch}', all_losses)
+    # save loss numpy array so that it can be plotted/processed later
+    np.save(f'../results/losses/train_loss_epoch_{epoch}', all_losses)
 
     #TODO: Decide what to save
     save_path = f'../model_states/model_epoch_{epoch}.tar'
@@ -70,28 +68,32 @@ def train(epoch):
 def validate(epoch):
     model.eval()
     valid_loss = 0
+    all_losses = []
     with torch.no_grad():
         for batch_idx, data in enumerate(validation_loader):
             data = data.to(device)
             recon_batch, mu, logvar = model(data)
             loss = loss_function(recon_batch, data, mu, logvar)
             valid_loss += loss.item()
-            #break
+            all_losses.append(loss.item())
     
     print('====> Epoch: {} Average validation loss: {:.4f}'.format(epoch, valid_loss / len(validation_loader)))
+    np.save(f'../results/losses/validation_loss_epoch_{epoch}', all_losses)
 
 
 def test(epoch):
     model.eval()
     test_loss = 0
+    all_losses = []
     with torch.no_grad():
         for batch_idx, data in enumerate(test_loader):
             data = data.to(device)
             recon_batch, mu, logvar = model(data)
             loss = loss_function(recon_batch, data, mu, logvar)
             test_loss += loss.item()
+            all_losses.append(loss.item())
 
-            #TEST: implement reconstruction sampling and saving
+            #TODO: implement multiple (random) samples from the test, i.e. not only when the batch_idx == 0
             if batch_idx == 0:
                 origi = data[0,1:,:].cpu()
                 recon = torch.bernoulli(recon_batch[0,:,:]).cpu()
@@ -110,12 +112,10 @@ def test(epoch):
 
                 # save piano roll image
                 torchvision.utils.save_image(concat, f'../results/reconstruction/reconstruction_epoch_{epoch}.png')
-             #   plt.figure(figsize=(8, 4))
-	            #plt.imshow(piano_roll)
-	            #plt.show()
-                #break
 
     print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, test_loss / len(test_loader)))
+    np.save(f'../results/losses/test_loss_epoch_{epoch}', all_losses)
+
 
 #TODO: sample only last hidden state
 def generate_beat(model, x0, z0, beat_length=16): #TODO: check sample generation. This is the loop which feeds back always the z and the previous result of the network by using 1 more cell per round. (BERCI)
@@ -182,7 +182,6 @@ if __name__ == "__main__":
     model = vae.vae.MIDI(88,300,64,args.sequence_length).to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     loss_function = vae.vae.bce_kld_loss
-    #loss_function = vae.vae.simple_loss
 
     # load the model parameters from the saved file if given (.tar extension)
     c_epoch = 0
@@ -199,7 +198,6 @@ if __name__ == "__main__":
     # if we want to train
     if not args.generative:
         # create dataset and loaders
-        #midi_dataset = vae.midi_dataloader.SINUSDataset(args.sequence_length)
         midi_dataset = vae.midi_dataloader.MIDIDataset('../data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=True)
         train_sampler, test_sampler, validation_sampler = vae.midi_dataloader.split_dataset(midi_dataset, test_split=0.15, validation_split=0.15, shuffle=True)
         train_loader      = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=train_sampler,      drop_last=True)

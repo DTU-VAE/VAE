@@ -1,33 +1,5 @@
 import torch
 from torch import nn
-from torch.nn import functional as F
-
-
-#class MIDI(nn.Module):
-#    def __init__(self, input_size, hidden_size, embedding_size, sequence_length, last_cell_only = True):
-#        super(MIDI, self).__init__()
-
-#        self.input_size = input_size
-#        self.hidden_size = 88
-#        self.embedding_size = embedding_size
-#        self.sequence_length = sequence_length
-#        self.last_cell_only = last_cell_only
-
-#        # encode rnn
-#        self.rnn1 = nn.LSTM(self.input_size,self.hidden_size,num_layers=1,batch_first=True,dropout=0,bidirectional=False)
-#        self.fc4 = nn.Linear(self.input_size, self.input_size)
-#        self.activation = nn.ReLU()
-
-#    def forward(self, x):
-#        x, (h, c) = self.rnn1(x)
-#        x = self.activation(self.fc4(x))
-#        x1 = torch.sigmoid(x)
-#        x2 = torch.softmax(x)
-#        return x, 0, 0
-
-
-
-
 
 
 class MIDI(nn.Module):
@@ -112,8 +84,33 @@ def bce_kld_loss(recon_x, x, mu, logvar):
     
     return BCE + KLD
 
+
+class SimpleMIDI(nn.Module):
+    def __init__(self, input_size, hidden_size, embedding_size, sequence_length, last_cell_only = True):
+        super(MIDI, self).__init__()
+
+        self.input_size = input_size
+        self.hidden_size = 88
+        self.embedding_size = embedding_size
+        self.sequence_length = sequence_length
+        self.last_cell_only = last_cell_only
+
+        # encode rnn
+        self.rnn1 = nn.LSTM(self.input_size,self.hidden_size,num_layers=1,batch_first=True,dropout=0,bidirectional=False)
+        self.fc4 = nn.Linear(self.input_size, self.input_size)
+        self.activation = nn.ReLU()
+
+    def forward(self, x):
+        x, (h, c) = self.rnn1(x)
+        x = self.activation(self.fc4(x))
+        x1 = torch.sigmoid(x)
+        x2 = torch.softmax(x)
+        return x, 0, 0
+
+
 def simple_loss(recon_x, x, _, __):
     BCE = F.binary_cross_entropy(recon_x, x, reduction='none')
     BCE = torch.sum(BCE, (1,2)) # sum over 2nd and 3rd dimensions (keeping it separate for each batch)
     BCE = torch.mean(BCE) # average over batch losses
+
     return BCE
