@@ -52,10 +52,10 @@ class MIDIDataset(Dataset):
             semitones = [sum(semitone)/total_velocity for semitone in piano_midi.get_chroma()]
             midi_key = np.argmax(semitones)
             # Shift all notes down by midi_key semitones if major, midi_key + 3 semitones if minor
-            if semitones[midi_key + 4 % 12] > semitones[midi_key + 3 % 12]:
-                transpose_key = midy_key # Major
+            if semitones[(midi_key + 4) % 12] > semitones[(midi_key + 3) % 12]:
+                transpose_key = midi_key # Major
             else:
-                transpose_key = midy_key + 3 # Minor
+                transpose_key = midi_key + 3 # Minor
 
             # Shift all notes up by midi_key semitones
             for instrument in piano_midi.instruments:
