@@ -54,6 +54,8 @@ def train(epoch):
     #TODO: print average train time per epoch?
     print('====> Epoch: {} Average train loss: {:.4f}\tTotal train time: {:.3f} min'.format(epoch, train_loss / len(train_loader),(time()-start_time)/60.0))
 
+    np.save(f'../results/losses/loss_epoch_{epoch}', all_losses)
+
     #TODO: Decide what to save
     save_path = f'../model_states/model_epoch_{epoch}.tar'
     torch.save({
@@ -151,6 +153,7 @@ def sample(name, cycle):
 
         # convert piano roll to midi
         program = pretty_midi.instrument_name_to_program('Acoustic Grand Piano')
+        #TODO: check what `fs` we should use here
         midi_from_proll = vae.midi_utils.piano_roll_to_pretty_midi(all_samples, fs = 8, program = program) #TEST: reduced frequency to be able to hear the generated 'music'
 
         # save midi to specified location
