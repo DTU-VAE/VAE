@@ -8,7 +8,7 @@ import numpy as np
 from time import time
 import pretty_midi
 import vae
-import matplotlib.pyplot as plt
+
 
 parser = argparse.ArgumentParser(description='VAE MIDI')
 parser.add_argument('--epochs', type=int, default=1, metavar='N',
@@ -53,11 +53,6 @@ def train(epoch):
 
     #TODO: print average train time per epoch?
     print('====> Epoch: {} Average train loss: {:.4f}\tTotal train time: {:.3f} min'.format(epoch, train_loss / len(train_loader),(time()-start_time)/60.0))
-    # Plot batch losses for each epochs
-    plt.figure()
-    plt.plot(all_losses, 'r')
-    plt.title("Batch losses in epoch " + str(epoch))
-    plt.xlabel('Batches'), plt.ylabel('NLL')
 
     #TODO: Decide what to save
     save_path = f'../model_states/model_epoch_{epoch}.tar'
