@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pylab as plt
 from matplotlib import colors as c
-
+import matplotlib.patches as mpatches
 
 def plot_reconstruction(original, reconstruction, save=False, filename="recon_diff"):
 	assert isinstance(original, np.ndarray), "'original' argument is not of type 'numpy.ndarray'"
@@ -33,6 +33,8 @@ def plot_reconstruction(original, reconstruction, save=False, filename="recon_di
 	plt.figure(figsize=(16,8))
 	plt.imshow(original, cmap=cMap, vmax=4)
 	plt.axis("off")
+	patches = [ mpatches.Patch(color="white", label="Original signal"), mpatches.Patch(color="green", label="Exact reconstruction"), mpatches.Patch(color="red", label="Inexact reconstruction")]
+	plt.legend(handles=patches, bbox_to_anchor=(.733, 1), loc=2, borderaxespad=0. )
 	if save:
 		plt.savefig(filename, dpi=300)
 	plt.show()
