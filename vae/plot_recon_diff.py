@@ -4,7 +4,7 @@ from matplotlib import colors as c
 import matplotlib.patches as mpatches
 from scipy import signal
 
-def plot_reconstruction(original, reconstruction, filename="recon_diff", conv_size=15, repeats=3, for_print=False):
+def plot_reconstruction(original, reconstruction, filename="recon_diff", conv_size=3, repeats=3):
 	assert isinstance(original, np.ndarray), "'original' argument is not of type 'numpy.ndarray'"
 	assert isinstance(reconstruction, np.ndarray), "'reconstruction' argument is not of type 'numpy.ndarray'"
 	assert original.shape == reconstruction.shape, "Input arrays have unidentical shape"
@@ -12,18 +12,14 @@ def plot_reconstruction(original, reconstruction, filename="recon_diff", conv_si
 	assert conv_size % 2 == 1, "'conv_size' must be odd number"
 
 	def save_input(src, extension):
-		if for_print:
-			extension += "_print"
 		src_plot = src.copy()
 		src_plot = src_plot.astype('bool')
 		src_plot = np.repeat(src_plot, repeats, axis=1)
 		plt.figure(figsize=(10,5))
-		if for_print:
-			plt.imshow(src_plot, cmap='binary')
-			plt.savefig(filename+"_"+extension, dpi=300)
-		else:
-			plt.imshow(~src_plot, cmap='binary')
-			plt.savefig(filename+"_"+extension, dpi=300, facecolor="black")
+		plt.axis("off")
+		plt.imshow(src_plot, cmap='binary')
+		plt.savefig(filename+"_"+extension, dpi=300)
+
 
 	save_input(original, "original")
 	save_input(reconstruction, "reconstruction")
@@ -65,22 +61,12 @@ def plot_reconstruction(original, reconstruction, filename="recon_diff", conv_si
 
 	# For print
 	plt.figure(figsize=(10,5))
-	if for_print:
-		cMap = c.ListedColormap(['#FF0000','#FF2A00', '#FF5500', '#FF8000', '#FFAA00', '#FFD500',
-			'black','chartreuse','chartreuse','chartreuse','chartreuse','chartreuse','chartreuse'])
-		patches = [ mpatches.Patch(color="black", label="Original signal"), mpatches.Patch(color="chartreuse", label="Exact reconstruction"), mpatches.Patch(color="#FF0000", label="Inexact reconstruction")]
-	else:
-		cMap = c.ListedColormap(['#FF0000','#FF2A00', '#FF5500', '#FF8000', '#FFAA00', '#FFD500',
-		'white','chartreuse','chartreuse','chartreuse','chartreuse','chartreuse','chartreuse'])
-		patches = [ mpatches.Patch(color="white", label="Original signal"), mpatches.Patch(color="chartreuse", label="Exact reconstruction"), mpatches.Patch(color="#FF0000", label="Inexact reconstruction")]
+	cMap = c.ListedColormap(['#FF0000','#FF2A00', '#FF5500', '#FF8000', '#FFAA00', '#FFD500',
+		'black','chartreuse','chartreuse','chartreuse','chartreuse','chartreuse','chartreuse'])
+	patches = [ mpatches.Patch(color="black", label="Original signal"), mpatches.Patch(color="chartreuse", label="Exact reconstruction"), mpatches.Patch(color="#FF0000", label="Inexact reconstruction")]
 
 	plt.axis("off")
 	plt.legend(handles=patches, bbox_to_anchor=(.733, 1), loc=2, borderaxespad=0. )	
 	plt.imshow(original, cmap=cMap, vmin=-1, vmax=1)
 
-	if for_print:
-		plt.savefig(filename+"_print", dpi=300)
-	else:
-		plt.savefig(filename, dpi=300, facecolor="black")
-	
-plot_reconstruction(sin1, sin2, save=True, conv_size=15, repeats=3, for_print=False)
+	plt.savefig(filename+"_print", dpi=300)
