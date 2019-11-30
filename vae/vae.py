@@ -66,7 +66,6 @@ class MIDI(nn.Module):
     def decode(self, zx):
         x, (h, c) = self.drnn1(zx)
 
-        #TEST: add linear layer to hidden states
         return self.sigmoid(self.fc4(x))
 
     def forward(self, x):

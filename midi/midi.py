@@ -13,12 +13,12 @@ import vae
 parser = argparse.ArgumentParser(description='VAE MIDI')
 parser.add_argument('--epochs', type=int, default=1, metavar='N',
                     help='number of epochs to train (default: 1)')
-parser.add_argument('--batch-size', type=int, default=512, metavar='N',
-                    help='input batch size for training (default: 512)')
-parser.add_argument('--sequence-length', type=int, default=256, metavar='N',
-                    help='sequence length of input data to LSTM (default: 16x16)')
-parser.add_argument('--log-interval', type=int, default=15, metavar='N',
-                    help='how many batches to wait before logging training status (default: 15)')
+parser.add_argument('--batch-size', type=int, default=128, metavar='N',
+                    help='input batch size for training (default: 128)')
+parser.add_argument('--sequence-length', type=int, default=16, metavar='N',
+                    help='sequence length of input data to LSTM (default: 16)')
+parser.add_argument('--log-interval', type=int, default=60, metavar='N',
+                    help='how many batches to wait before logging training status (default: 60)')
 parser.add_argument('--bootstrap', type=str, default='', metavar='S',
                     help='specifies the path to the model.tar to load the model from')
 parser.add_argument('--generative', action='store_true', default=False,
@@ -117,19 +117,20 @@ def test(epoch):
     np.save(f'../results/losses/test_loss_epoch_{epoch}', all_losses)
 
 
-#TODO: sample only last hidden state
-def generate_beat(model, x0, z0, beat_length=16): #TODO: check sample generation. This is the loop which feeds back always the z and the previous result of the network by using 1 more cell per round. (BERCI)
+def generate_beat(model, x0, z0, beat_length=16):
     zx = torch.cat([x0, z0], 2) # creating the initial zx from the x0 start vector and z
+    samples = [x0]
     for n in range(beat_length-1):
         output = model.decode(zx)
         z  = torch.cat([z0 for _ in range(n+2)], 1) # merging the original z with itself, it needs to have the same sequence size as the next x input
-        x  = torch.cat([x0, output], 1)
-        x  = torch.bernoulli(x) #TODO: check if this is needed
+        x  = torch.bernoulli(output[:, -1, :]) # sample output of last cell from decoder
+        samples.append(torch.unsqueeze(x,0)) # append to samples list for later
+        x  = torch.cat(samples, 1) # concat input for next decoding sequence
         zx = torch.cat([x, z], 2) # merging the z-s with the inputs (x0 + the last output)
     return x
 
 
-def sample(name, cycle):
+def sample(name, bars):
     model.eval()
     with torch.no_grad():
         samples = []
@@ -138,23 +139,22 @@ def sample(name, cycle):
         sample_z = torch.randn(1, 1, model.embedding_size).to(device)
         sample_x = torch.zeros(1, 1, model.input_size).to(device) #TODO: check if this is good or not
 
-        # generate `cycle` many beats
-        for i in range(cycle):
+        # generate `bars` many beats
+        for i in range(bars):
             sample = generate_beat(model, sample_x, sample_z)
             samples.append(sample.cpu())
             sample_z = torch.randn(1, 1, model.embedding_size).to(device) # sample new z
-            sample_x = sample[:, -1, :].view(1, 1, -1) # continue next beat from last sound of previous beat
+            sample_x = torch.unsqueeze(sample[:, -1, :], 0) # continue next beat from last sound of previous beat
         
         # generate piano roll from beats    
         all_samples = torch.cat(samples, 1)
-        #all_samples = torch.bernoulli(all_samples) #TODO: this needs to be removed if samples are already binary
-        all_samples = all_samples * 100
+        all_samples = all_samples * 60
         all_samples = torch.t(torch.squeeze(all_samples))
 
         # convert piano roll to midi
         program = pretty_midi.instrument_name_to_program('Acoustic Grand Piano')
         #TODO: check what `fs` we should use here
-        midi_from_proll = vae.midi_utils.piano_roll_to_pretty_midi(all_samples, fs = 8, program = program) #TEST: reduced frequency to be able to hear the generated 'music'
+        midi_from_proll = vae.midi_utils.piano_roll_to_pretty_midi(all_samples, fs = 16, program = program)
 
         # save midi to specified location
         save_path = f'../results/sample/sample_epoch_{name}.midi'
@@ -179,7 +179,7 @@ if __name__ == "__main__":
     # create model, optimizer, and loss function on specific device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #kwargs = {'num_workers': 1, 'pin_memory': True} if cuda else {}
-    model = vae.vae.MIDI(88,2048,128,args.sequence_length).to(device)
+    model = vae.vae.MIDI(88,256,128,args.sequence_length).to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     loss_function = vae.vae.bce_kld_loss
 
@@ -208,9 +208,9 @@ if __name__ == "__main__":
         for epoch in range(c_epoch+1, (c_epoch + args.epochs + 1)):
             train(epoch)
             validate(epoch)
-            sample(name=epoch, cycle=4)
+            sample(name=epoch, bars=16)
         test((c_epoch + args.epochs))
     # otherwise simply generate a sample from the loaded model
     else:
         print('Generating sample from model')
-        sample(name='without_training', cycle=4)
+        sample(name='without_training', bars=16)
