@@ -37,7 +37,6 @@ class MIDIDataset(Dataset):
             if year == -1 or year in dirpath:
                 self.midi_files.extend(ff)
 
-        self.dataset_length = 0
         self.trackID = 0
         self.midi_data = {}
         print('Start loading dataset..')
@@ -66,11 +65,14 @@ class MIDIDataset(Dataset):
 
             piano_roll = piano_midi.get_piano_roll(fs=fs)[21:109, :]
 
+            # Binarize if set
+            if self.binarize:
+                piano_roll = np.clip(piano_roll, 0, 1)
+
             self.midi_data[self.trackID] = piano_roll
             self.trackID += 1
-            self.dataset_length += piano_roll.shape[1] - (self.sequence_length - 1) # Remove uncomplete sequences from choices
 
-        print('Loaded dataset. Number of tracks = {}, Total sample size = {}'.format(self.trackID + 1, self.dataset_length))
+        print('Loaded dataset. Number of tracks = {}'.format(self.trackID + 1))
 
         # Pickle dataset
         if self.save_pickle:
@@ -81,8 +83,7 @@ class MIDIDataset(Dataset):
                 print('Saved dataset into pickle file at {}'.format(pickled_file))
 
     def __len__(self):
-        return self.trackID + 1
-
+        return len(self.midi_data.keys())
 
     def __getitem__(self, idx):
         return self.midi_data[idx]
@@ -94,6 +95,9 @@ def create_sequential_data_loader(dataset, batch_size=10, test_split=0.15, valid
     test_split = int(np.floor(test_split * dataset_size))
     validation_split = int(np.floor(validation_split * dataset_size))
     shuffle = shuffle
+
+    if shuffle:
+        np.random.shuffle(indices)
 
     train_indices = indices[(validation_split + test_split):]
     test_indices = indices[validation_split:(validation_split + test_split)]
@@ -108,7 +112,7 @@ def create_sequential_data_loader(dataset, batch_size=10, test_split=0.15, valid
 
 class sequential_data_loader():
     def __init__(self, dataset, indices, batch_size, sequence_length, shuffle=True):
-        self.dataset = dataset.midi_data
+        self.orginal_dataset = dataset.midi_data
         self.indices = indices
         self.batch_size = batch_size
         self.sequence_length = sequence_length
@@ -125,31 +129,35 @@ class sequential_data_loader():
         return self
 
     def __next__(self):
-        while self.idx <= len(self):
+        while self.idx < len(self):
             try:
                 sequence = np.array(next(self.sequence_iter))
                 return sequence
             except:
                 self.idx += 1
+                if not self.idx < len(self):
+                    break
                 self.reset_iter(hardReset=False)
         
         # Reset data loader and iterator
         self.reset_data()
         self.reset_iter(hardReset=True)
-        raise StopIteration # epoch complete if return is None
+        raise StopIteration # epoch complete
 
     def reset_data(self):
         if self.shuffle:
             np.random.shuffle(self.indices)
 
-        self.concat_data = []
-        for i in range(len(self)):
-            self.concat_data.append(self.dataset[i])
+        self.shuffled_data = {}
+        self.trackID = 0
+        for i in self.indices:
+            self.shuffled_data[self.trackID] = self.orginal_dataset[i]
+            self.trackID += 1
             
     def reset_iter(self, hardReset):
         if hardReset:
             self.idx = 0
-        self.sequence_iter =  zip(*[islice(iter([self.dataset[self.idx][:,i:i+self.sequence_length].T for i in range(self.dataset[self.idx].shape[1] - self.sequence_length + 1)]), j, None) for j in range(self.batch_size)])
+        self.sequence_iter =  zip(*[islice(iter([self.shuffled_data[self.idx][:,i:i+self.sequence_length].T for i in range(0, self.shuffled_data[self.idx].shape[1] - self.sequence_length + 1, self.sequence_length)]), j, None, self.batch_size) for j in range(self.batch_size)])
 
 
 if __name__ == '__main__':
@@ -169,11 +177,17 @@ if __name__ == '__main__':
         for i_batch, sample_batched in enumerate(train_loader):
             i, s = i_batch, sample_batched.shape
             print('train',i_batch, sample_batched.shape)
+            if i_batch == 2:
+                break
 
         for i_batch, sample_batched in enumerate(test_loader):
             i, s = i_batch, sample_batched.shape
-            print('train',i_batch, sample_batched.shape)
+            print('test',i_batch, sample_batched.shape)
+            if i_batch == 2:
+                break
 
         for i_batch, sample_batched in enumerate(validation_loader):
             i, s = i_batch, sample_batched.shape
-            print('train',i_batch, sample_batched.shape)
+            print('valid',i_batch, sample_batched.shape)
+            if i_batch == 2:
+                break
