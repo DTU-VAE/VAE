@@ -33,6 +33,9 @@ def train(epoch):
     train_loss = 0
     all_losses = []
     for batch_idx, data in enumerate(train_loader):
+        if data is None:
+            model.reset_cells()
+            continue
         data = data.to(device)
         optimizer.zero_grad()
         recon_batch, mu, logvar = model(data)
@@ -90,6 +93,9 @@ def test(epoch):
     all_losses = []
     with torch.no_grad():
         for batch_idx, data in enumerate(test_loader):
+            if data is None:
+                continue
+
             data = data.to(device)
             recon_batch, mu, logvar = model(data)
             loss = loss_function(recon_batch, data, mu, logvar)

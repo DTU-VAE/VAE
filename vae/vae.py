@@ -12,6 +12,8 @@ class MIDI(nn.Module):
         self.embedding_size = embedding_size
         self.sequence_length = sequence_length
 
+        self.reset_cells()
+
         # encode rnn
         self.rnn1 = nn.LSTM(self.input_size,self.hidden_size,num_layers=2,batch_first=True,dropout=0,bidirectional=True)
 
@@ -36,7 +38,13 @@ class MIDI(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def encode(self, x):
-        x, (h, c) = self.rnn1(x)
+        if self.h_en is not None and self.c_en is not None:
+            x, (self.h_en, self.c_en) = self.rnn1(x, (self.h_en, self.c_en))
+        else:
+            x, (self.h_en, self.c_en) = self.rnn1(x)
+
+        self.h_en = self.h_en.detach()
+        self.c_en = self.c_en.detach()
 
         # `x` has shape (batch, sequence, hidden_size)
         # the LSTM implements sequence many cells, so `x` contains the output (hidden state) of each cell
@@ -64,7 +72,13 @@ class MIDI(nn.Module):
             return mu
 
     def decode(self, zx):
-        x, (h, c) = self.drnn1(zx)
+        if self.h_de is not None and self.c_de is not None:
+            x, (self.h_de, self.c_de) = self.drnn1(zx, (self.h_de, self.c_de))
+        else:
+            x, (self.h_de, self.c_de) = self.drnn1(zx)
+
+        self.h_de = self.h_de.detach()
+        self.c_de = self.c_de.detach()
 
         return self.sigmoid(self.fc4(x))
 
@@ -76,6 +90,12 @@ class MIDI(nn.Module):
         zx = torch.cat((x[:, :-1, :], z), 2)
         out = self.decode(zx)
         return out, mu, logvar
+
+    def reset_cells(self):
+        self.h_en = None
+        self.c_en = None
+        self.h_de = None
+        self.c_de = None
 
 
 # Reconstruction + KL divergence losses summed over all elements and batch

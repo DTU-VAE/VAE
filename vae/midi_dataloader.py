@@ -100,13 +100,15 @@ def data_loader(dataset, sampler):
         for index in indices:
             samplers.append(SequentialSampler(dataset[index]))
             
-        for samples in itertools.zip_longest(*samplers):
+        #for samples in itertools.zip_longest(*samplers):
+        for samples in zip(*samplers):
             batch = []
             for i in range(len(samples)):
                 if samples[i] is not None:
                     batch.append(torch.unsqueeze(torch.from_numpy(dataset[indices[i]][samples[i]]),0))
 
             yield torch.cat(batch, 0)
+        yield None
 
 
 if __name__ == '__main__':
