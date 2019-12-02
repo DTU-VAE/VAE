@@ -79,7 +79,7 @@ class MIDIDataset(Dataset):
             if not path.exists(root_path + "/pickle"):
                 makedirs(root_path + "/pickle")
             with open(pickled_file, 'wb') as f:
-                pickle.dump((self.midi_data, self.dataset_length), f)
+                pickle.dump((self.midi_data, len(self)), f)
                 print('Saved dataset into pickle file at {}'.format(pickled_file))
 
     def __len__(self):
@@ -132,7 +132,7 @@ class sequential_data_loader():
         while self.idx < len(self):
             try:
                 sequence = np.array(next(self.sequence_iter))
-                return sequence
+                return torch.from_numpy(sequence)
             except:
                 self.idx += 1
                 if not self.idx < len(self):
@@ -177,17 +177,17 @@ if __name__ == '__main__':
         for i_batch, sample_batched in enumerate(train_loader):
             i, s = i_batch, sample_batched.shape
             print('train',i_batch, sample_batched.shape)
-            if i_batch == 2:
-                break
+            # if i_batch == 2:
+            #     break
 
         for i_batch, sample_batched in enumerate(test_loader):
             i, s = i_batch, sample_batched.shape
             print('test',i_batch, sample_batched.shape)
-            if i_batch == 2:
-                break
+            # if i_batch == 2:
+            #     break
 
         for i_batch, sample_batched in enumerate(validation_loader):
             i, s = i_batch, sample_batched.shape
             print('valid',i_batch, sample_batched.shape)
-            if i_batch == 2:
-                break
+            # if i_batch == 2:
+            #     break
