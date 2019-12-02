@@ -1,20 +1,21 @@
 import argparse
 import torch
 from torch import nn, optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, RandomSampler, BatchSampler
 import torchvision
 from pathlib import Path
 import numpy as np
 from time import time
 import pretty_midi
 import vae
+from vae.midi_dataloader import PianoRoll
 
 
 parser = argparse.ArgumentParser(description='VAE MIDI')
 parser.add_argument('--epochs', type=int, default=1, metavar='N',
                     help='number of epochs to train (default: 1)')
-parser.add_argument('--batch-size', type=int, default=128, metavar='N',
-                    help='input batch size for training (default: 128)')
+parser.add_argument('--batch-size', type=int, default=10, metavar='N',
+                    help='input batch size for training (default: 10)')
 parser.add_argument('--sequence-length', type=int, default=16, metavar='N',
                     help='sequence length of input data to LSTM (default: 16)')
 parser.add_argument('--log-interval', type=int, default=60, metavar='N',
@@ -42,14 +43,16 @@ def train(epoch):
         optimizer.step()
 
         if args.log_interval != 0 and batch_idx % args.log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tElapsed time: {:.3f} min'.format(
-                epoch, batch_idx, len(train_loader),
-                100. * batch_idx / len(train_loader),
-                loss.item(),
-                (time() - start_time)/60.0))
+            print('Loss: {:.6f}\tElapsed time: {:.3f} min'.format(
+                loss.item(),(time() - start_time)/60.0))
+            #print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tElapsed time: {:.3f} min'.format(
+            #    epoch, batch_idx, len(train_loader),
+            #    100. * batch_idx / len(train_loader),
+            #    loss.item(),
+            #    (time() - start_time)/60.0))
 
     #TODO: print average train time per epoch?
-    print('====> Epoch: {} Average train loss: {:.4f}\tTotal train time: {:.3f} min'.format(epoch, train_loss / len(train_loader),(time()-start_time)/60.0))
+    #print('====> Epoch: {} Average train loss: {:.4f}\tTotal train time: {:.3f} min'.format(epoch, train_loss / len(train_loader),(time()-start_time)/60.0))
 
     # save loss numpy array so that it can be plotted/processed later
     np.save(f'../results/losses/train_loss_epoch_{epoch}', all_losses)
@@ -113,7 +116,7 @@ def test(epoch):
                 # save piano roll image
                 torchvision.utils.save_image(concat, f'../results/reconstruction/reconstruction_epoch_{epoch}.png')
 
-    print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, test_loss / len(test_loader)))
+    #print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, test_loss / len(test_loader)))
     np.save(f'../results/losses/test_loss_epoch_{epoch}', all_losses)
 
 
@@ -198,16 +201,29 @@ if __name__ == "__main__":
     # if we want to train
     if not args.generative:
         # create dataset and loaders
-        midi_dataset = vae.midi_dataloader.MIDIDataset('../data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=True)
-        train_sampler, test_sampler, validation_sampler = vae.midi_dataloader.split_dataset(midi_dataset, test_split=0.15, validation_split=0.15, shuffle=True)
-        train_loader      = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=train_sampler,      drop_last=True)
-        test_loader       = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=test_sampler,       drop_last=True)
-        validation_loader = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=validation_sampler, drop_last=True)
+        root_path = '../data/maestro-v2.0.0'
+        train_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='train', year=2004)
+        valid_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='validation', year=2004)
+        test_dataset  = vae.midi_dataloader.MIDIDataset(root_path, split='test', year=2004)
+        
+        train_sampler = BatchSampler(RandomSampler(train_dataset), batch_size=args.batch_size, drop_last=False)
+        valid_sampler = BatchSampler(RandomSampler(valid_dataset), batch_size=args.batch_size, drop_last=False)
+        test_sampler  = BatchSampler(RandomSampler(test_dataset),  batch_size=args.batch_size, drop_last=False)
+
+        train_loader = vae.midi_dataloader.data_loader(train_dataset, train_sampler)
+        valid_loader = vae.midi_dataloader.data_loader(valid_dataset, valid_sampler)
+        test_loader  = vae.midi_dataloader.data_loader(test_dataset,  test_sampler)
+
+        #midi_dataset = vae.midi_dataloader.MIDIDataset('../data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=True)
+        #train_sampler, test_sampler, validation_sampler = vae.midi_dataloader.split_dataset(midi_dataset, test_split=0.15, validation_split=0.15, shuffle=True)
+        #train_loader      = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=train_sampler,      drop_last=True)
+        #test_loader       = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=test_sampler,       drop_last=True)
+        #validation_loader = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=validation_sampler, drop_last=True)
 
         # start training and save a sample after each epoch
         for epoch in range(c_epoch+1, (c_epoch + args.epochs + 1)):
             train(epoch)
-            validate(epoch)
+            #validate(epoch)
             sample(name=epoch, bars=16)
         test((c_epoch + args.epochs))
     # otherwise simply generate a sample from the loaded model
