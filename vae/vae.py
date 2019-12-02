@@ -87,6 +87,12 @@ class MIDI(nn.Module):
         z = self.reparameterize(mu, logvar)
         z = torch.unsqueeze(z,1) # add a third dimension (middle) to be able to concatenate with x
         z = torch.cat([z for _ in range(self.sequence_length-1)], 1)
+        mask = torch.FloatTensor(x.shape[0], x.shape[1]).uniform_() < 0.2
+        mask = torch.unsqueeze(mask,2)
+        mask = torch.cat([mask for _ in range(88)], 2)
+        mask = mask.float().to(x.device)
+        x = (1 - mask) * x
+        #x = (1 - mask) * x + mask * torch.zeros_like(x)
         zx = torch.cat((x[:, :-1, :], z), 2)
         out = self.decode(zx)
         return out, mu, logvar

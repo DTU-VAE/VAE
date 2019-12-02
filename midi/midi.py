@@ -73,10 +73,13 @@ def train(epoch):
 
 def validate(epoch):
     model.eval()
+    model.reset_cells()
     valid_loss = 0
     all_losses = []
     with torch.no_grad():
         for batch_idx, data in enumerate(validation_loader):
+            if data is None:
+                continue
             data = data.to(device)
             recon_batch, mu, logvar = model(data)
             loss = loss_function(recon_batch, data, mu, logvar)
@@ -89,6 +92,7 @@ def validate(epoch):
 
 def test(epoch):
     model.eval()
+    model.reset_cells()
     test_loss = 0
     all_losses = []
     with torch.no_grad():
