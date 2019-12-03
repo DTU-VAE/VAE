@@ -20,7 +20,8 @@ class PianoRoll(Dataset):
         midi_key = np.argmax(semitones)
 
         # Shift all notes down by midi_key semitones if major, midi_key + 3 semitones if minor
-        transpose_key = midi_key if semitones[(midi_key + 4) % 12] > semitones[(midi_key + 3) % 12] else midi_key + 3
+        #transpose_key = midi_key if semitones[(midi_key + 4) % 12] > semitones[(midi_key + 3) % 12] else midi_key + 3
+        transpose_key = 0 #TODO: temporarly disabled transposition of pitches
 
         # Shift all notes down by transpose_key semitones
         for instrument in piano_midi.instruments:

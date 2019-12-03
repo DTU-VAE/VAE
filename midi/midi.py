@@ -216,9 +216,9 @@ if __name__ == "__main__":
         valid_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='validation', year=2004)
         test_dataset  = vae.midi_dataloader.MIDIDataset(root_path, split='test', year=2004)
         
-        train_sampler = BatchSampler(RandomSampler(train_dataset), batch_size=args.batch_size, drop_last=False)
-        valid_sampler = BatchSampler(RandomSampler(valid_dataset), batch_size=args.batch_size, drop_last=False)
-        test_sampler  = BatchSampler(RandomSampler(test_dataset),  batch_size=args.batch_size, drop_last=False)
+        train_sampler = BatchSampler(RandomSampler(train_dataset), batch_size=args.batch_size, drop_last=True)
+        valid_sampler = BatchSampler(RandomSampler(valid_dataset), batch_size=args.batch_size, drop_last=True)
+        test_sampler  = BatchSampler(RandomSampler(test_dataset),  batch_size=args.batch_size, drop_last=True)
 
         train_loader = vae.midi_dataloader.data_loader(train_dataset, train_sampler)
         valid_loader = vae.midi_dataloader.data_loader(valid_dataset, valid_sampler)
