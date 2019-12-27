@@ -43,3 +43,8 @@ def synthetize_baseline(dataset, length=64):
 	save_path = '../results/baseline.midi'
 	midi_from_proll.write(save_path)
 	print('Saved baseline at {}'.format(save_path))
+
+if __name__ == '__main__':
+	root_path = '../data/maestro-v2.0.0'
+	train_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='train', year=2004)
+	synthetize_baseline(train_dataset, length=64*4)
