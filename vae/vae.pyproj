@@ -28,9 +28,6 @@
     <Compile Include="midi_utils.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="new_dataloader.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="plot_losses.py">
       <SubType>Code</SubType>
     </Compile>

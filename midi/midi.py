@@ -16,8 +16,8 @@ parser.add_argument('--epochs', type=int, default=1, metavar='N',
                     help='number of epochs to train (default: 1)')
 parser.add_argument('--batch-size', type=int, default=10, metavar='N',
                     help='input batch size for training (default: 10)')
-parser.add_argument('--sequence-length', type=int, default=16, metavar='N',
-                    help='sequence length of input data to LSTM (default: 16)')
+parser.add_argument('--sequence-length', type=int, default=256, metavar='N',
+                    help='sequence length of input data to LSTM (default: 256)')
 parser.add_argument('--log-interval', type=int, default=60, metavar='N',
                     help='how many batches to wait before logging training status (default: 60)')
 parser.add_argument('--bootstrap', type=str, default='', metavar='S',
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     # create model, optimizer, and loss function on specific device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #kwargs = {'num_workers': 1, 'pin_memory': True} if cuda else {}
-    model = vae.vae.MIDI(88,256,128,args.sequence_length).to(device)
+    model = vae.vae.MIDI(88,100,30,args.sequence_length).to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     loss_function = vae.vae.bce_kld_loss
 
@@ -211,24 +211,35 @@ if __name__ == "__main__":
     # if we want to train
     if not args.generative:
         # create dataset and loaders
-        root_path = '../data/maestro-v2.0.0'
-        train_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='train', year=2004)
-        valid_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='validation', year=2004)
-        test_dataset  = vae.midi_dataloader.MIDIDataset(root_path, split='test', year=2004)
+        #root_path = '../data/maestro-v2.0.0'
+        #train_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='train',      year=2004, sequence_length=args.sequence_length)
+        #valid_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='validation', year=2004, sequence_length=args.sequence_length)
+        #test_dataset  = vae.midi_dataloader.MIDIDataset(root_path, split='test',       year=2004, sequence_length=args.sequence_length)
         
-        train_sampler = BatchSampler(RandomSampler(train_dataset), batch_size=args.batch_size, drop_last=True)
-        valid_sampler = BatchSampler(RandomSampler(valid_dataset), batch_size=args.batch_size, drop_last=True)
-        test_sampler  = BatchSampler(RandomSampler(test_dataset),  batch_size=args.batch_size, drop_last=True)
+        #train_sampler = BatchSampler(RandomSampler(train_dataset), batch_size=args.batch_size, drop_last=True)
+        #valid_sampler = BatchSampler(RandomSampler(valid_dataset), batch_size=args.batch_size, drop_last=True)
+        #test_sampler  = BatchSampler(RandomSampler(test_dataset),  batch_size=args.batch_size, drop_last=True)
 
-        train_loader = vae.midi_dataloader.data_loader(train_dataset, train_sampler)
-        valid_loader = vae.midi_dataloader.data_loader(valid_dataset, valid_sampler)
-        test_loader  = vae.midi_dataloader.data_loader(test_dataset,  test_sampler)
+        #train_loader = vae.midi_dataloader.data_loader(train_dataset, train_sampler)
+        #valid_loader = vae.midi_dataloader.data_loader(valid_dataset, valid_sampler)
+        #test_loader  = vae.midi_dataloader.data_loader(test_dataset,  test_sampler)
+        ###########
 
-        #midi_dataset = vae.midi_dataloader.MIDIDataset('../data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=True)
+        # same dataset, but the sequences are randomly sampled from ALL midi files
+        #midi_dataset = vae.midi_dataloader.MIDIRandomDataset('../data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=True)
         #train_sampler, test_sampler, validation_sampler = vae.midi_dataloader.split_dataset(midi_dataset, test_split=0.15, validation_split=0.15, shuffle=True)
         #train_loader      = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=train_sampler,      drop_last=True)
         #test_loader       = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=test_sampler,       drop_last=True)
         #validation_loader = DataLoader(midi_dataset, batch_size=args.batch_size, sampler=validation_sampler, drop_last=True)
+        ###########
+
+        # sinusoid dataset to test network
+        sinus_dataset = vae.midi_dataloader.SINUSDataset(args.sequence_length)
+        train_sampler, test_sampler, validation_sampler = vae.midi_dataloader.split_dataset(sinus_dataset, test_split=0.15, validation_split=0.15, shuffle=True)
+        train_loader      = DataLoader(sinus_dataset, batch_size=args.batch_size, sampler=train_sampler,      drop_last=True)
+        test_loader       = DataLoader(sinus_dataset, batch_size=args.batch_size, sampler=test_sampler,       drop_last=True)
+        validation_loader = DataLoader(sinus_dataset, batch_size=args.batch_size, sampler=validation_sampler, drop_last=True)
+        ###########
 
         # start training and save a sample after each epoch
         for epoch in range(c_epoch+1, (c_epoch + args.epochs + 1)):

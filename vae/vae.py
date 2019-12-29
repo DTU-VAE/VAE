@@ -110,7 +110,7 @@ def bce_kld_loss(recon_x, x, mu, logvar):
     KLD = torch.mean(KLD) # average over batch losses
 
     global beta
-    beta += 0.001
+    beta += 0.05
     if beta > 1:
         beta = 1
     
