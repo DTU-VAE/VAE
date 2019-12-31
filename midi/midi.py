@@ -48,6 +48,9 @@ def train(epoch):
         if args.log_interval != 0 and batch_idx % args.log_interval == 0:
             print('Loss: {:.6f}\tElapsed time: {:.3f} min'.format(
                 loss.item(),(time() - start_time)/60.0))
+
+        if batch_idx > 5000:
+            break
             #print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tElapsed time: {:.3f} min'.format(
             #    epoch, batch_idx, len(train_loader),
             #    100. * batch_idx / len(train_loader),
@@ -125,6 +128,7 @@ def test(epoch):
 
                 # save piano roll image
                 torchvision.utils.save_image(concat, f'../results/reconstruction/reconstruction_epoch_{epoch}.png')
+                break #TODO: REMOVE THIS
 
     #print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, test_loss / len(test_loader)))
     np.save(f'../results/losses/test_loss_epoch_{epoch}', all_losses)
@@ -145,6 +149,7 @@ def generate_beat(model, x0, z0, beat_length=16):
 
 def sample(name, bars):
     model.eval()
+    model.reset_cells()
     with torch.no_grad():
         samples = []
         
@@ -211,18 +216,18 @@ if __name__ == "__main__":
     # if we want to train
     if not args.generative:
         # create dataset and loaders
-        #root_path = '../data/maestro-v2.0.0'
-        #train_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='train',      year=2004, sequence_length=args.sequence_length)
-        #valid_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='validation', year=2004, sequence_length=args.sequence_length)
-        #test_dataset  = vae.midi_dataloader.MIDIDataset(root_path, split='test',       year=2004, sequence_length=args.sequence_length)
+        root_path = '../data/maestro-v2.0.0'
+        train_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='train',      year=2004, sequence_length=args.sequence_length)
+        valid_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='validation', year=2004, sequence_length=args.sequence_length)
+        test_dataset  = vae.midi_dataloader.MIDIDataset(root_path, split='test',       year=2004, sequence_length=args.sequence_length)
         
-        #train_sampler = BatchSampler(RandomSampler(train_dataset), batch_size=args.batch_size, drop_last=True)
-        #valid_sampler = BatchSampler(RandomSampler(valid_dataset), batch_size=args.batch_size, drop_last=True)
-        #test_sampler  = BatchSampler(RandomSampler(test_dataset),  batch_size=args.batch_size, drop_last=True)
+        train_sampler = BatchSampler(RandomSampler(train_dataset), batch_size=args.batch_size, drop_last=True)
+        valid_sampler = BatchSampler(RandomSampler(valid_dataset), batch_size=args.batch_size, drop_last=True)
+        test_sampler  = BatchSampler(RandomSampler(test_dataset),  batch_size=args.batch_size, drop_last=True)
 
-        #train_loader = vae.midi_dataloader.data_loader(train_dataset, train_sampler)
-        #valid_loader = vae.midi_dataloader.data_loader(valid_dataset, valid_sampler)
-        #test_loader  = vae.midi_dataloader.data_loader(test_dataset,  test_sampler)
+        train_loader = vae.midi_dataloader.data_loader(train_dataset, train_sampler)
+        valid_loader = vae.midi_dataloader.data_loader(valid_dataset, valid_sampler)
+        test_loader  = vae.midi_dataloader.data_loader(test_dataset,  test_sampler)
         ###########
 
         # same dataset, but the sequences are randomly sampled from ALL midi files
@@ -234,11 +239,11 @@ if __name__ == "__main__":
         ###########
 
         # sinusoid dataset to test network
-        sinus_dataset = vae.midi_dataloader.SINUSDataset(args.sequence_length)
-        train_sampler, test_sampler, validation_sampler = vae.midi_dataloader.split_dataset(sinus_dataset, test_split=0.15, validation_split=0.15, shuffle=True)
-        train_loader      = DataLoader(sinus_dataset, batch_size=args.batch_size, sampler=train_sampler,      drop_last=True)
-        test_loader       = DataLoader(sinus_dataset, batch_size=args.batch_size, sampler=test_sampler,       drop_last=True)
-        validation_loader = DataLoader(sinus_dataset, batch_size=args.batch_size, sampler=validation_sampler, drop_last=True)
+        #sinus_dataset = vae.midi_dataloader.SINUSDataset(args.sequence_length)
+        #train_sampler, test_sampler, validation_sampler = vae.midi_dataloader.split_dataset(sinus_dataset, test_split=0.15, validation_split=0.15, shuffle=True)
+        #train_loader      = DataLoader(sinus_dataset, batch_size=args.batch_size, sampler=train_sampler,      drop_last=True)
+        #test_loader       = DataLoader(sinus_dataset, batch_size=args.batch_size, sampler=test_sampler,       drop_last=True)
+        #validation_loader = DataLoader(sinus_dataset, batch_size=args.batch_size, sampler=validation_sampler, drop_last=True)
         ###########
 
         # start training and save a sample after each epoch

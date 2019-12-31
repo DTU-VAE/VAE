@@ -287,59 +287,6 @@ if __name__ == '__main__':
     batch_size = 10
     
     root_path = '../data/maestro-v2.0.0'
-
-    
-    
-    
-    
-    
-    allMIDI = SINUSDataset(256)
-
-    batch_size = 10
-    train_sampler, test_sampler, validation_sampler = split_dataset(allMIDI)
-
-    train_loader = DataLoader(allMIDI, batch_size=batch_size, sampler=train_sampler, drop_last=True, num_workers=0)
-    test_loader = DataLoader(allMIDI, batch_size=batch_size, sampler=test_sampler, drop_last=True, num_workers=0)
-    validation_loader = DataLoader(allMIDI, batch_size=batch_size, sampler=validation_sampler, drop_last=True, num_workers=0)
-    dataloader_all = DataLoader(allMIDI, batch_size=batch_size, shuffle=True, num_workers=0, drop_last=True)
-
-    print('Dataset size: {}'.format(len(dataloader_all)))
-    print('Train size: {}'.format(len(train_loader)))
-    print('Test size: {}'.format(len(test_loader)))
-    print('Validation size: {}'.format(len(validation_loader)))
-    print('\n------------------------------------------\nShape examples\n')
-
-    for i_batch, sample_batched in enumerate(dataloader_all):
-        print('all',i_batch, sample_batched.shape)
-        if i_batch == 2:
-            break
-
-    for i_batch, sample_batched in enumerate(train_loader):
-        print('train',i_batch, sample_batched.shape)
-        if i_batch == 2:
-            break
-
-    for i_batch, sample_batched in enumerate(test_loader):
-        print('test',i_batch, sample_batched.shape)
-        if i_batch == 2:
-            break
-
-    for i_batch, sample_batched in enumerate(validation_loader):
-        print('valid',i_batch, sample_batched.shape)
-        if i_batch == 2:
-            break
-
-    exit()
-
-
-
-
-
-
-
-
-
-
     
     train_dataset = MIDIDataset(root_path, split='train', year=2004)
     valid_dataset = MIDIDataset(root_path, split='validation', year=2004)

@@ -15,7 +15,7 @@ class MIDI(nn.Module):
         self.reset_cells()
 
         # encode rnn
-        self.rnn1 = nn.LSTM(self.input_size,self.hidden_size,num_layers=2,batch_first=True,dropout=0,bidirectional=True)
+        self.rnn1 = nn.LSTM(self.input_size,self.hidden_size,num_layers=1,batch_first=True,dropout=0,bidirectional=False)
 
         # laten space (mean, std)
         linear_in_size = self.hidden_size
@@ -25,7 +25,7 @@ class MIDI(nn.Module):
         self.fc22 = nn.Linear(linear_in_size, self.embedding_size)
         
         # deconde rnn
-        self.drnn1 = nn.LSTM(self.input_size+self.embedding_size,self.hidden_size,num_layers=2,batch_first=True,dropout=0,bidirectional=False)
+        self.drnn1 = nn.LSTM(self.input_size+self.embedding_size,self.hidden_size,num_layers=1,batch_first=True,dropout=0,bidirectional=False)
 
         # decode linear
         self.fnn1 = nn.Linear(self.hidden_size, self.input_size)
@@ -43,7 +43,7 @@ class MIDI(nn.Module):
         self.h_en = self.h_en.detach()
         self.c_en = self.c_en.detach()
 
-        # `x` has shape (batch, sequence, hidden_size)
+        # `x` has shape (batch, sequence, direction, hidden_size)
         # the LSTM implements sequence many cells, so `x` contains the output (hidden state) of each cell
         # if we only need the last cells output we could do
         # x = x[:, -1, :]
@@ -84,7 +84,7 @@ class MIDI(nn.Module):
         z = torch.cat([z for _ in range(self.sequence_length-1)], 1)
         mask = torch.FloatTensor(x.shape[0], x.shape[1]).uniform_() < 0.2
         mask = torch.unsqueeze(mask,2)
-        mask = torch.cat([mask for _ in range(88)], 2)
+        mask = torch.cat([mask for _ in range(x.shape[-1])], 2)
         mask = mask.float().to(x.device)
         x = (1 - mask) * x
         #x = (1 - mask) * x + mask * torch.zeros_like(x)
@@ -122,7 +122,7 @@ class SimpleMIDI(nn.Module):
         super(MIDI, self).__init__()
 
         self.input_size = input_size
-        self.hidden_size = 88
+        self.hidden_size = hidden_size
         self.embedding_size = embedding_size
         self.sequence_length = sequence_length
         self.last_cell_only = last_cell_only
