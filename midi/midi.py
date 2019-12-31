@@ -48,14 +48,14 @@ def train(epoch):
         if args.log_interval != 0 and batch_idx % args.log_interval == 0:
             print('Loss: {:.6f}\tElapsed time: {:.3f} min'.format(
                 loss.item(),(time() - start_time)/60.0))
-
-        if batch_idx > 5000:
-            break
             #print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tElapsed time: {:.3f} min'.format(
             #    epoch, batch_idx, len(train_loader),
             #    100. * batch_idx / len(train_loader),
             #    loss.item(),
             #    (time() - start_time)/60.0))
+
+        #if batch_idx > 5000:
+        #    break
 
     #TODO: print average train time per epoch?
     #print('====> Epoch: {} Average train loss: {:.4f}\tTotal train time: {:.3f} min'.format(epoch, train_loss / len(train_loader),(time()-start_time)/60.0))
@@ -128,7 +128,7 @@ def test(epoch):
 
                 # save piano roll image
                 torchvision.utils.save_image(concat, f'../results/reconstruction/reconstruction_epoch_{epoch}.png')
-                break #TODO: REMOVE THIS
+                #break #TODO: REMOVE THIS
 
     #print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, test_loss / len(test_loader)))
     np.save(f'../results/losses/test_loss_epoch_{epoch}', all_losses)
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     # create model, optimizer, and loss function on specific device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #kwargs = {'num_workers': 1, 'pin_memory': True} if cuda else {}
-    model = vae.vae.MIDI(88,100,30,args.sequence_length).to(device)
+    model = vae.vae.MIDI(88,64,32,args.sequence_length).to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     loss_function = vae.vae.bce_kld_loss
 
