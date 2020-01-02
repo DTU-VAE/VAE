@@ -29,6 +29,7 @@ args = parser.parse_args()
 
 def train(epoch):
     model.train()
+    model.reset_cells()
     start_time = time()
     train_loss = 0
     all_losses = []
@@ -184,7 +185,7 @@ if __name__ == "__main__":
         if args.generative:
             print('Since the required model could not be loaded, the generation is aborted.')
             exit()
-        answer = input('Start training a new network? (y/n)')
+        answer = input('Start training a new network? (Y/n)')
         if answer == 'n':
             exit()
         args.bootstrap = ''
@@ -212,17 +213,13 @@ if __name__ == "__main__":
     if not args.generative:
         # create dataset and loaders
         root_path = '../data/maestro-v2.0.0'
-        train_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='train', year=2004)
-        valid_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='validation', year=2004)
-        test_dataset  = vae.midi_dataloader.MIDIDataset(root_path, split='test', year=2004)
+        train_dataset = vae.midi_dataloader.MIDIDataset(root_path, sequence_length=args.sequence_length, split='train', year=2004)
+        valid_dataset = vae.midi_dataloader.MIDIDataset(root_path, sequence_length=args.sequence_length, split='validation', year=2004)
+        test_dataset  = vae.midi_dataloader.MIDIDataset(root_path, sequence_length=args.sequence_length, split='test', year=2004)
         
-        train_sampler = BatchSampler(RandomSampler(train_dataset), batch_size=args.batch_size, drop_last=False)
-        valid_sampler = BatchSampler(RandomSampler(valid_dataset), batch_size=args.batch_size, drop_last=False)
-        test_sampler  = BatchSampler(RandomSampler(test_dataset),  batch_size=args.batch_size, drop_last=False)
-
-        train_loader = vae.midi_dataloader.data_loader(train_dataset, train_sampler)
-        valid_loader = vae.midi_dataloader.data_loader(valid_dataset, valid_sampler)
-        test_loader  = vae.midi_dataloader.data_loader(test_dataset,  test_sampler)
+        train_sampler = BatchSampler(RandomSampler(train_dataset), batch_size=args.batch_size, drop_last=True)
+        valid_sampler = BatchSampler(RandomSampler(valid_dataset), batch_size=args.batch_size, drop_last=True)
+        test_sampler  = BatchSampler(RandomSampler(test_dataset),  batch_size=args.batch_size, drop_last=True)
 
         #midi_dataset = vae.midi_dataloader.MIDIDataset('../data/maestro-v2.0.0', sequence_length=args.sequence_length, fs=16, year=2004, add_limit_tokens=False, binarize=True, save_pickle=True)
         #train_sampler, test_sampler, validation_sampler = vae.midi_dataloader.split_dataset(midi_dataset, test_split=0.15, validation_split=0.15, shuffle=True)
@@ -232,6 +229,11 @@ if __name__ == "__main__":
 
         # start training and save a sample after each epoch
         for epoch in range(c_epoch+1, (c_epoch + args.epochs + 1)):
+            # Refill loaders in each run
+            train_loader = vae.midi_dataloader.data_loader(train_dataset, train_sampler)
+            valid_loader = vae.midi_dataloader.data_loader(valid_dataset, valid_sampler)
+            test_loader  = vae.midi_dataloader.data_loader(test_dataset,  test_sampler)
+            
             train(epoch)
             #validate(epoch)
             sample(name=epoch, bars=16)
