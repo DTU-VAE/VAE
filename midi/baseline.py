@@ -59,11 +59,12 @@ def test():
 	test_loss = 0
 	all_losses = []
 	loss_function = vae.vae.bce_kld_loss
+	gen = generate_baseline(train_dataset, 16-1)
 	for batch_idx, data in enumerate(test_loader):
 		if data is None:
 			continue
 
-		baseline = next(generate_baseline(train_dataset, data.shape[1]-1))
+		baseline = next(gen)
 		baseline = torch.from_numpy(np.transpose(baseline))
 		baseline = torch.unsqueeze(baseline,0)
 		mu = torch.tensor(0)
