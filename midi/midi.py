@@ -31,6 +31,7 @@ args = parser.parse_args()
 
 def train(epoch):
     model.train()
+    model.reset_cells()
     start_time = time()
     train_loss = 0
     all_losses = []
@@ -216,6 +217,7 @@ if __name__ == "__main__":
     if not args.generative:
         # create dataset and loaders
         root_path = '../data/maestro-v2.0.0'
+
         train_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='train',      year=2004, sequence_length=args.sequence_length, transpose_key=args.transpose_key)
         valid_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='validation', year=2004, sequence_length=args.sequence_length, transpose_key=args.transpose_key)
         test_dataset  = vae.midi_dataloader.MIDIDataset(root_path, split='test',       year=2004, sequence_length=args.sequence_length, transpose_key=args.transpose_key)
@@ -246,7 +248,7 @@ if __name__ == "__main__":
             train_loader      = vae.midi_dataloader.data_loader(train_dataset, train_sampler)
             validation_loader = vae.midi_dataloader.data_loader(valid_dataset, valid_sampler)
             test_loader       = vae.midi_dataloader.data_loader(test_dataset,  test_sampler)
-
+      
             train(epoch)
             validate(epoch)
             sample(name=epoch, bars=16)
