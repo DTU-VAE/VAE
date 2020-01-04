@@ -59,7 +59,8 @@ class PianoRoll(Dataset):
 class MIDIDataset(Dataset):
     def __init__(self, root_path, split='train', sequence_length=16, year=-1, binarize=True, save_pickle=True, transpose_key=False):
         # Load pickle if it exists and return
-        pickled_file = root_path + "/pickle/year_" + str(year) + "_" + split + ".pkl"
+        extra = '_key_transposed' if transpose_key else ''
+        pickled_file = root_path + "/pickle/year_" + str(year) + "_" + split + extra + ".pkl"
         if Path(pickled_file).is_file():
             print('Found pickle dataset at {}. Start loading...'.format(pickled_file))
             with open(pickled_file, 'rb') as f:
@@ -84,7 +85,8 @@ class MIDIDataset(Dataset):
 
         # Pickle dataset
         if save_pickle:
-            pickled_file = root_path + "/pickle/year_" + str(year) + "_" + split + ".pkl"
+            extra = '_key_transposed' if transpose_key else ''
+            pickled_file = root_path + "/pickle/year_" + str(year) + "_" + split + extra + ".pkl"
             if not path.exists(root_path + "/pickle"):
                 makedirs(root_path + "/pickle")
             with open(pickled_file, 'wb') as f:
