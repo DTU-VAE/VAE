@@ -8,28 +8,32 @@ import pandas as pd
 from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler, RandomSampler, SequentialSampler, BatchSampler
 from tqdm import tqdm # used to pretty print loading progress
 import itertools
+import music21
 
 
 class PianoRoll(Dataset):
-    def __init__(self, piano_midi, sequence_length=16, binarize=True):
+    def __init__(self, piano_midi, key, sequence_length=16, binarize=True):
         self.sequence_length = sequence_length
 
-        # get the key of the music (by estimating the dominant semitone)
-        total_velocity = sum(sum(piano_midi.get_chroma()))
-        semitones = [sum(semitone)/total_velocity for semitone in piano_midi.get_chroma()]
-        midi_key = np.argmax(semitones)
+        if key:
+            ## get the key of the music (by estimating the dominant semitone)
+            #total_velocity = sum(sum(piano_midi.get_chroma()))
+            #semitones = [sum(semitone)/total_velocity for semitone in piano_midi.get_chroma()]
+            #midi_key = np.argmax(semitones)
 
-        # Shift all notes down by midi_key semitones if major, midi_key + 3 semitones if minor
-        #transpose_key = midi_key if semitones[(midi_key + 4) % 12] > semitones[(midi_key + 3) % 12] else midi_key + 3
-        transpose_key = 0 #TODO: temporarly disabled transposition of pitches
+            ## Shift all notes down by midi_key semitones if major, midi_key + 3 semitones if minor
+            ##transpose_key = midi_key if semitones[(midi_key + 4) % 12] > semitones[(midi_key + 3) % 12] else midi_key + 3
+            #transpose_key = 0 #TODO: temporarly disabled transposition of pitches
 
-        # Shift all notes down by transpose_key semitones
-        for instrument in piano_midi.instruments:
-            for note in instrument.notes:
-                note.pitch -= transpose_key if note.pitch - transpose_key >= 0 else transpose_key - 12
+            transpose_key = pretty_midi.note_name_to_number(key.tonic.name.replace('-','b')+'0') - 12 + (0 if key.mode=="major" else 3)
+
+            # Shift all notes down by transpose_key semitones
+            for instrument in piano_midi.instruments:
+                for note in instrument.notes:
+                    note.pitch -= transpose_key if note.pitch - transpose_key >= 0 else transpose_key - 12
 
         # this is the required sampling frequency to get 16 x 16th notes in a bar (1 bar = 4 beats)
-        fs = (piano_midi.estimate_tempo() * 16.0) / (4.0 * 60.0);
+        fs = (piano_midi.estimate_tempo() * 16.0) / (4.0 * 60.0)
 
         self.piano_roll = piano_midi.get_piano_roll(fs=fs)[21:109, :]
         self.piano_roll = self.piano_roll.astype(np.float32)
@@ -53,7 +57,7 @@ class PianoRoll(Dataset):
 
 
 class MIDIDataset(Dataset):
-    def __init__(self, root_path, split='train', sequence_length=16, year=-1, binarize=True, save_pickle=True):
+    def __init__(self, root_path, split='train', sequence_length=16, year=-1, binarize=True, save_pickle=True, transpose_key=False):
         # Load pickle if it exists and return
         pickled_file = root_path + "/pickle/year_" + str(year) + "_" + split + ".pkl"
         if Path(pickled_file).is_file():
@@ -70,10 +74,13 @@ class MIDIDataset(Dataset):
             row = midi_csv.iloc[i]
             if (year == -1 or row['year'] == year) and row['split'] == split:
                 piano_midi = pretty_midi.PrettyMIDI(root_path+'/'+row['midi_filename'])
+
+                key = music21.converter.parse(root_path+'/'+row['midi_filename']).analyze('Krumhansl') if transpose_key else None
+
                 if len(piano_midi.time_signature_changes) != 1 or piano_midi.time_signature_changes[0].numerator != 4 or piano_midi.time_signature_changes[0].denominator != 4:
                     continue # if the time signature of the music is not 4/4 we skip this music
 
-                self.midi_data.append(PianoRoll(piano_midi, sequence_length, binarize))
+                self.midi_data.append(PianoRoll(piano_midi, key, sequence_length, binarize))
 
         # Pickle dataset
         if save_pickle:

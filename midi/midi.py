@@ -16,12 +16,14 @@ parser.add_argument('--epochs', type=int, default=1, metavar='N',
                     help='number of epochs to train (default: 1)')
 parser.add_argument('--batch-size', type=int, default=10, metavar='N',
                     help='input batch size for training (default: 10)')
-parser.add_argument('--sequence-length', type=int, default=256, metavar='N',
-                    help='sequence length of input data to LSTM (default: 256)')
+parser.add_argument('--sequence-length', type=int, default=128, metavar='N',
+                    help='sequence length of input data to LSTM (default: 128)')
 parser.add_argument('--log-interval', type=int, default=60, metavar='N',
                     help='how many batches to wait before logging training status (default: 60)')
 parser.add_argument('--bootstrap', type=str, default='', metavar='S',
                     help='specifies the path to the model.tar to load the model from')
+parser.add_argument('--transpose-key', action='store_true', default=False,
+                    help='indicates whether the midi data should be transposed to C major (default: False)')
 parser.add_argument('--generative', action='store_true', default=False,
                     help='indicates whether the model is trained or only used for generation (default: False)')
 args = parser.parse_args()
@@ -53,9 +55,6 @@ def train(epoch):
             #    100. * batch_idx / len(train_loader),
             #    loss.item(),
             #    (time() - start_time)/60.0))
-
-        #if batch_idx > 5000:
-        #    break
 
     #TODO: print average train time per epoch?
     #print('====> Epoch: {} Average train loss: {:.4f}\tTotal train time: {:.3f} min'.format(epoch, train_loss / len(train_loader),(time()-start_time)/60.0))
@@ -89,7 +88,8 @@ def validate(epoch):
             valid_loss += loss.item()
             all_losses.append(loss.item())
     
-    print('====> Epoch: {} Average validation loss: {:.4f}'.format(epoch, valid_loss / len(validation_loader)))
+    #TODO: make this print statement work - len(validation_loader) is none
+    #print('====> Epoch: {} Average validation loss: {:.4f}'.format(epoch, valid_loss / len(validation_loader)))
     np.save(f'../results/losses/validation_loss_epoch_{epoch}', all_losses)
 
 
@@ -109,8 +109,8 @@ def test(epoch):
             test_loss += loss.item()
             all_losses.append(loss.item())
 
-            #TODO: implement multiple (random) samples from the test, i.e. not only when the batch_idx == 0
-            if batch_idx == 0:
+            #TODO: implement multiple (random) samples from the test, i.e. not only when the batch_idx == 50
+            if batch_idx == 50:
                 origi = data[0,1:,:].cpu()
                 recon = torch.bernoulli(recon_batch[0,:,:]).cpu()
                 concat = torch.cat([origi, recon], 0)
@@ -128,7 +128,6 @@ def test(epoch):
 
                 # save piano roll image
                 torchvision.utils.save_image(concat, f'../results/reconstruction/reconstruction_epoch_{epoch}.png')
-                #break #TODO: REMOVE THIS
 
     #print('\n====> Average test loss after {} epochs: {:.4f}'.format(epoch, test_loss / len(test_loader)))
     np.save(f'../results/losses/test_loss_epoch_{epoch}', all_losses)
@@ -189,7 +188,7 @@ if __name__ == "__main__":
         if args.generative:
             print('Since the required model could not be loaded, the generation is aborted.')
             exit()
-        answer = input('Start training a new network? (y/n)')
+        answer = input('Start training a new network? (Y/n)')
         if answer == 'n':
             exit()
         args.bootstrap = ''
@@ -217,17 +216,13 @@ if __name__ == "__main__":
     if not args.generative:
         # create dataset and loaders
         root_path = '../data/maestro-v2.0.0'
-        train_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='train',      year=2004, sequence_length=args.sequence_length)
-        valid_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='validation', year=2004, sequence_length=args.sequence_length)
-        test_dataset  = vae.midi_dataloader.MIDIDataset(root_path, split='test',       year=2004, sequence_length=args.sequence_length)
+        train_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='train',      year=2004, sequence_length=args.sequence_length, transpose_key=args.transpose_key)
+        valid_dataset = vae.midi_dataloader.MIDIDataset(root_path, split='validation', year=2004, sequence_length=args.sequence_length, transpose_key=args.transpose_key)
+        test_dataset  = vae.midi_dataloader.MIDIDataset(root_path, split='test',       year=2004, sequence_length=args.sequence_length, transpose_key=args.transpose_key)
         
         train_sampler = BatchSampler(RandomSampler(train_dataset), batch_size=args.batch_size, drop_last=True)
         valid_sampler = BatchSampler(RandomSampler(valid_dataset), batch_size=args.batch_size, drop_last=True)
         test_sampler  = BatchSampler(RandomSampler(test_dataset),  batch_size=args.batch_size, drop_last=True)
-
-        train_loader = vae.midi_dataloader.data_loader(train_dataset, train_sampler)
-        valid_loader = vae.midi_dataloader.data_loader(valid_dataset, valid_sampler)
-        test_loader  = vae.midi_dataloader.data_loader(test_dataset,  test_sampler)
         ###########
 
         # same dataset, but the sequences are randomly sampled from ALL midi files
@@ -248,11 +243,16 @@ if __name__ == "__main__":
 
         # start training and save a sample after each epoch
         for epoch in range(c_epoch+1, (c_epoch + args.epochs + 1)):
+            train_loader      = vae.midi_dataloader.data_loader(train_dataset, train_sampler)
+            validation_loader = vae.midi_dataloader.data_loader(valid_dataset, valid_sampler)
+            test_loader       = vae.midi_dataloader.data_loader(test_dataset,  test_sampler)
+
             train(epoch)
-            #validate(epoch)
+            validate(epoch)
             sample(name=epoch, bars=16)
         test((c_epoch + args.epochs))
+
     # otherwise simply generate a sample from the loaded model
     else:
-        print('Generating sample from model')
-        sample(name='without_training', bars=16)
+        print('Generating sample from the loaded model...')
+        sample(name='generative', bars=16)
