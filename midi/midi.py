@@ -49,8 +49,8 @@ def train(epoch):
         optimizer.step()
 
         if args.log_interval != 0 and batch_idx % args.log_interval == 0:
-            print('Loss: {:.6f}\tElapsed time: {:.3f} min'.format(
-                loss.item(),(time() - start_time)/60.0))
+            print('Train epoch: {}\tLoss: {:.6f}\tElapsed time: {:.3f} min'.format(
+                epoch,loss.item(),(time() - start_time)/60.0))
             #print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tElapsed time: {:.3f} min'.format(
             #    epoch, batch_idx, len(train_loader),
             #    100. * batch_idx / len(train_loader),
